@@ -103,7 +103,14 @@ This was needed because the Application layers use `IRabbitMQPublisher` from Wor
 
 **Changes:**
 
-1. **Pack to local feed** (in `build-shared-libraries` job):
+1. **Create local-packages directory early** (in `build-shared-libraries` job):
+   ```yaml
+   - name: Create local packages directory
+     run: mkdir -p local-packages
+   ```
+   This step is added immediately after checkout to ensure the directory exists before any restore operations. This prevents `error NU1301: The local source doesn't exist` when NuGet evaluates package sources.
+
+2. **Pack to local feed** (in `build-shared-libraries` job):
    ```yaml
    - name: Pack NuGet packages to local feed
      run: |
@@ -113,7 +120,7 @@ This was needed because the Application layers use `IRabbitMQPublisher` from Wor
        dotnet pack src/Shared/Workshop.Messaging/Workshop.Messaging.csproj --configuration Release --no-build --output ./local-packages
    ```
 
-2. **Upload packages as artifacts**:
+3. **Upload packages as artifacts**:
    ```yaml
    - name: Upload NuGet packages as artifacts
      uses: actions/upload-artifact@v4
@@ -122,7 +129,7 @@ This was needed because the Application layers use `IRabbitMQPublisher` from Wor
        path: ./local-packages/*.nupkg
    ```
 
-3. **Download artifacts in service jobs** (added to all 4 service build jobs):
+4. **Download artifacts in service jobs** (added to all 4 service build jobs):
    ```yaml
    - name: Download NuGet packages
      uses: actions/download-artifact@v4

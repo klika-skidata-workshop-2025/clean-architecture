@@ -20,6 +20,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Create local packages directory
+      run: mkdir -p local-packages
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
