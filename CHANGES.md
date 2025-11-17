@@ -142,7 +142,62 @@ This was needed because the Application layers use `IRabbitMQPublisher` from Wor
 
 ---
 
-### 7. **Updated Documentation**
+### 7. **Fixed Compilation Errors**
+
+**Issue 1: DeviceHeartbeatEvent Property Errors**
+
+**File:** `src/Services/DeviceService/DeviceService.Application/Features/Devices/Commands/SimulateDeviceEvent/SimulateDeviceEventCommand.cs`
+
+**Problem:** Code was trying to set properties (`DeviceName`, `FirmwareVersion`, `IpAddress`, `EventType`, `EventData`) that don't exist on `DeviceHeartbeatEvent`.
+
+**Solution:** Used the `HealthData` dictionary to store additional device information:
+```csharp
+await _publisher.PublishAsync(new DeviceHeartbeatEvent
+{
+    DeviceId = device.Id,
+    DeviceType = device.Type.ToString(),
+    Status = device.Status.ToString(),
+    Location = device.Location,
+    HealthData = new Dictionary<string, string>
+    {
+        { "DeviceName", device.Name },
+        { "FirmwareVersion", device.FirmwareVersion },
+        { "IpAddress", device.IpAddress },
+        { "EventType", request.EventType },
+        { "EventData", request.EventData }
+    }
+}, cancellationToken);
+```
+
+**Issue 2: Missing Workshop.Messaging Using Directives**
+
+**Files Modified:**
+- `src/Services/DeviceService/DeviceService.Infrastructure/DependencyInjection.cs`
+- `src/Services/MonitoringService/MonitoringService.Infrastructure/DependencyInjection.cs`
+- `src/Services/DiagnosticsService/DiagnosticsService.Infrastructure/DependencyInjection.cs`
+
+**Problem:** `AddRabbitMQPublisher()` extension method could not be found.
+
+**Solution:** Added `using Workshop.Messaging;` directive to all Infrastructure DependencyInjection files.
+
+**Issue 3: Severity Type Ambiguity in MonitoringService**
+
+**Files Modified:**
+- `src/Services/MonitoringService/MonitoringService.Application/Features/Rules/Commands/CreateMonitoringRuleCommand.cs`
+- `src/Services/MonitoringService/MonitoringService.Application/Features/Rules/Commands/UpdateMonitoringRuleCommand.cs`
+- `src/Services/MonitoringService/MonitoringService.Application/Features/Rules/Queries/ListMonitoringRulesQuery.cs`
+- `src/Services/MonitoringService/MonitoringService.Application/Features/Alerts/Queries/GetActiveAlertsQuery.cs`
+- `src/Services/MonitoringService/MonitoringService.Application/Features/Alerts/Queries/GetAlertHistoryQuery.cs`
+
+**Problem:** `Severity` was ambiguous between `MonitoringService.Domain.Enums.Severity` and `FluentValidation.Severity`.
+
+**Solution:** Fully qualified all `Severity` references as `Domain.Enums.Severity`.
+
+**Files Modified:** 9 files
+
+---
+
+### 8. **Updated Documentation**
 
 **Created:**
 - `NUGET-SETUP.md` - Complete NuGet setup and workflow documentation
@@ -160,8 +215,8 @@ This was needed because the Application layers use `IRabbitMQPublisher` from Wor
 ## 📊 Summary Statistics
 
 **Total Files Created:** 2
-**Total Files Modified:** 15
-**Total Lines Changed:** ~150
+**Total Files Modified:** 24
+**Total Lines Changed:** ~200
 
 ---
 

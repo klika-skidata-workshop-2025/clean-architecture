@@ -18,7 +18,7 @@ public record UpdateMonitoringRuleCommand(
     RuleConditionType? ConditionType = null,
     string? ConditionValue = null,
     RuleActionType? ActionType = null,
-    Severity? AlertSeverity = null,
+    Domain.Enums.Severity? AlertSeverity = null,
     string? DeviceIdFilter = null,
     string? DeviceTypeFilter = null,
     bool? IsEnabled = null) : IRequest<Result>;

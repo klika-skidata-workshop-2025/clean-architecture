@@ -15,7 +15,7 @@ public record GetAlertHistoryQuery(
     DateTime? StartTime = null,
     DateTime? EndTime = null,
     AlertStatus? Status = null,
-    Severity? MinimumSeverity = null,
+    Domain.Enums.Severity? MinimumSeverity = null,
     string? DeviceId = null,
     int PageNumber = 1,
     int PageSize = 20) : IRequest<Result<GetAlertHistoryResponse>>;

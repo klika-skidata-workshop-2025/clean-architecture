@@ -26,7 +26,7 @@ public record MonitoringRuleDto(
     RuleConditionType ConditionType,
     string ConditionValue,
     RuleActionType ActionType,
-    Severity AlertSeverity,
+    Domain.Enums.Severity AlertSeverity,
     string? DeviceIdFilter,
     string? DeviceTypeFilter,
     DateTime? LastTriggeredAt,

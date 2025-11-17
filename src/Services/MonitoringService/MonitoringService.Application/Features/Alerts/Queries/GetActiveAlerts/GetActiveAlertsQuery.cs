@@ -11,7 +11,7 @@ namespace MonitoringService.Application.Features.Alerts.Queries.GetActiveAlerts;
 /// Query to get active (non-acknowledged) alerts with optional filtering.
 /// </summary>
 public record GetActiveAlertsQuery(
-    Severity? MinimumSeverity = null,
+    Domain.Enums.Severity? MinimumSeverity = null,
     string? DeviceId = null,
     int PageNumber = 1,
     int PageSize = 20) : IRequest<Result<GetActiveAlertsResponse>>;
@@ -23,7 +23,7 @@ public record AlertDto(
     string Id,
     string Title,
     string Message,
-    Severity Severity,
+    Domain.Enums.Severity Severity,
     AlertStatus Status,
     string? DeviceId,
     string? DeviceName,

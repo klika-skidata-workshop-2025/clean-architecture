@@ -16,7 +16,7 @@ public record CreateMonitoringRuleCommand(
     RuleConditionType ConditionType,
     string ConditionValue,
     RuleActionType ActionType,
-    Severity AlertSeverity,
+    Domain.Enums.Severity AlertSeverity,
     string? DeviceIdFilter = null,
     string? DeviceTypeFilter = null) : IRequest<Result<string>>;
 
