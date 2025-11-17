@@ -168,29 +168,26 @@ git clone https://github.com/klika-skidata-workshop-2025/clean-architecture.git
 cd clean-architecture
 ```
 
-2. **Set up GitHub Package authentication**
+2. **Pack shared libraries to local feed**
 
-Generate a GitHub Personal Access Token (PAT) with `read:packages` scope:
-- Go to https://github.com/settings/tokens
-- Generate new token (classic)
-- Select `read:packages` scope
-- Copy the token
-
-Set the environment variable:
+The workshop uses NuGet packages for shared libraries. First, pack them to the local feed:
 
 ```bash
-# Windows PowerShell
-$env:GITHUB_TOKEN="your_token_here"
-
-# Linux/macOS
-export GITHUB_TOKEN="your_token_here"
+# Pack all three shared libraries
+dotnet pack src/Shared/Workshop.Common/Workshop.Common.csproj --configuration Release --output ./local-packages
+dotnet pack src/Shared/Workshop.Proto/Workshop.Proto.csproj --configuration Release --output ./local-packages
+dotnet pack src/Shared/Workshop.Messaging/Workshop.Messaging.csproj --configuration Release --output ./local-packages
 ```
+
+> **Note:** See [NUGET-SETUP.md](NUGET-SETUP.md) for detailed NuGet workflow documentation.
 
 3. **Restore packages**
 
 ```bash
 dotnet restore
 ```
+
+> **Optional:** For production use with GitHub Packages, you'll need to set up authentication. See [NUGET-SETUP.md](NUGET-SETUP.md#production-deployment) for details.
 
 4. **Start infrastructure (PostgreSQL + RabbitMQ)**
 
@@ -372,6 +369,7 @@ Comprehensive guides are available in the [`docs/`](docs/) folder:
 - [gRPC Guide](docs/grpc-guide.md) - Protocol Buffers and gRPC usage
 - [RabbitMQ Guide](docs/rabbitmq-guide.md) - Event-driven messaging patterns
 - [Docker Guide](docs/docker-guide.md) - Container orchestration
+- [NuGet Setup](NUGET-SETUP.md) - **NEW!** NuGet package workflow and CI/CD setup
 - [Team Tasks](docs/team-tasks.md) - What each team will build
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 

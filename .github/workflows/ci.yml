@@ -47,17 +47,18 @@ jobs:
     - name: Build Workshop.Messaging
       run: dotnet build src/Shared/Workshop.Messaging/Workshop.Messaging.csproj --configuration Release --no-restore
 
-    - name: Pack NuGet packages
+    - name: Pack NuGet packages to local feed
       run: |
-        dotnet pack src/Shared/Workshop.Common/Workshop.Common.csproj --configuration Release --no-build --output ./artifacts
-        dotnet pack src/Shared/Workshop.Proto/Workshop.Proto.csproj --configuration Release --no-build --output ./artifacts
-        dotnet pack src/Shared/Workshop.Messaging/Workshop.Messaging.csproj --configuration Release --no-build --output ./artifacts
+        mkdir -p local-packages
+        dotnet pack src/Shared/Workshop.Common/Workshop.Common.csproj --configuration Release --no-build --output ./local-packages
+        dotnet pack src/Shared/Workshop.Proto/Workshop.Proto.csproj --configuration Release --no-build --output ./local-packages
+        dotnet pack src/Shared/Workshop.Messaging/Workshop.Messaging.csproj --configuration Release --no-build --output ./local-packages
 
-    - name: Upload NuGet artifacts
+    - name: Upload NuGet packages as artifacts
       uses: actions/upload-artifact@v4
       with:
         name: nuget-packages
-        path: ./artifacts/*.nupkg
+        path: ./local-packages/*.nupkg
         retention-days: 7
 
   build-device-service:
@@ -73,6 +74,12 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./local-packages
 
     - name: Restore dependencies
       run: dotnet restore src/Services/DeviceService/DeviceService.API/DeviceService.API.csproj
@@ -98,6 +105,12 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./local-packages
+
     - name: Restore dependencies
       run: dotnet restore src/Services/MonitoringService/MonitoringService.API/MonitoringService.API.csproj
 
@@ -122,6 +135,12 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./local-packages
+
     - name: Restore dependencies
       run: dotnet restore src/Services/DiagnosticsService/DiagnosticsService.API/DiagnosticsService.API.csproj
 
@@ -141,6 +160,12 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./local-packages
 
     - name: Restore dependencies
       run: dotnet restore src/Orchestrator/Workshop.Orchestrator/Workshop.Orchestrator.csproj

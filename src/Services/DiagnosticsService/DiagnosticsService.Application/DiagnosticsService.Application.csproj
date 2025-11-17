@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="Workshop.Common" />
+    <PackageReference Include="Workshop.Messaging" />
   </ItemGroup>
 
 </Project>
