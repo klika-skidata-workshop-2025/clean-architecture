@@ -3,6 +3,7 @@ using DiagnosticsService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Workshop.Messaging;
 
 namespace DiagnosticsService.Infrastructure;
 

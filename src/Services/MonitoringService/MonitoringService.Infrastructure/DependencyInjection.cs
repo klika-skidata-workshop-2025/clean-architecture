@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MonitoringService.Application.Common.Interfaces;
 using MonitoringService.Infrastructure.Messaging;
 using MonitoringService.Infrastructure.Persistence;
+using Workshop.Messaging;
 
 namespace MonitoringService.Infrastructure;
 

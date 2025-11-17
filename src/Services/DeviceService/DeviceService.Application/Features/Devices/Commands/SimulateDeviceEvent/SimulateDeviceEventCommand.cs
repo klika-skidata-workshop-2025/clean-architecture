@@ -69,14 +69,17 @@ public class SimulateDeviceEventCommandHandler : IRequestHandler<SimulateDeviceE
         await _publisher.PublishAsync(new DeviceHeartbeatEvent
         {
             DeviceId = device.Id,
-            DeviceName = device.Name,
             DeviceType = device.Type.ToString(),
             Status = device.Status.ToString(),
             Location = device.Location,
-            FirmwareVersion = device.FirmwareVersion,
-            IpAddress = device.IpAddress,
-            EventType = request.EventType,
-            EventData = request.EventData
+            HealthData = new Dictionary<string, string>
+            {
+                { "DeviceName", device.Name },
+                { "FirmwareVersion", device.FirmwareVersion },
+                { "IpAddress", device.IpAddress },
+                { "EventType", request.EventType },
+                { "EventData", request.EventData }
+            }
         }, cancellationToken);
 
         return Result.Ok();
