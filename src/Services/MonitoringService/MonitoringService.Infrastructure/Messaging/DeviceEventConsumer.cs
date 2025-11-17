@@ -115,7 +115,8 @@ public class DeviceEventConsumer : RabbitMQConsumerBase
                     DeviceId = evt.DeviceId,
                     DeviceName = evt.DeviceName,
                     Severity = rule.AlertSeverity.ToString(),
-                    Message = alert.Message
+                    Title = alert.Title,
+                    Description = alert.Message
                 }, cancellationToken);
             }
         }
@@ -179,7 +180,8 @@ public class DeviceEventConsumer : RabbitMQConsumerBase
                     DeviceId = evt.DeviceId,
                     DeviceName = deviceName ?? evt.DeviceId,
                     Severity = rule.AlertSeverity.ToString(),
-                    Message = alert.Message
+                    Title = alert.Title,
+                    Description = alert.Message
                 }, cancellationToken);
             }
         }

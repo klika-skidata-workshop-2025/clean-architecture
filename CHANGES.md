@@ -193,7 +193,21 @@ await _publisher.PublishAsync(new DeviceHeartbeatEvent
 
 **Solution:** Fully qualified all `Severity` references as `Domain.Enums.Severity`.
 
-**Files Modified:** 9 files
+**Issue 4: DeviceEventConsumer RabbitMQConsumerBase Signature Mismatch**
+
+**File:** `src/Services/MonitoringService/MonitoringService.Infrastructure/Messaging/DeviceEventConsumer.cs`
+
+**Problem:** `DeviceEventConsumer` was using old RabbitMQ consumer API that no longer matches the base class signature.
+
+**Solution:** Updated to match new `RabbitMQConsumerBase` API:
+- Added `QueueName` and `RoutingKeys` as override properties
+- Updated constructor to accept `IOptions<RabbitMQOptions>` instead of passing values to base
+- Updated `HandleMessageAsync` signature to include `routingKey` parameter
+- Added private `_logger` field since base class logger is now private
+- Fixed `DeviceHeartbeatEvent` property access to extract data from `HealthData` dictionary
+- Fixed `AlertTriggeredEvent` to use `Title` and `Description` instead of non-existent `Message` property
+
+**Files Modified:** 10 files
 
 ---
 
@@ -215,8 +229,8 @@ await _publisher.PublishAsync(new DeviceHeartbeatEvent
 ## 📊 Summary Statistics
 
 **Total Files Created:** 2
-**Total Files Modified:** 24
-**Total Lines Changed:** ~200
+**Total Files Modified:** 25
+**Total Lines Changed:** ~250
 
 ---
 
