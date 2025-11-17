@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MonitoringService.Application.Common.Interfaces;
 using MonitoringService.Domain.Entities;
 using MonitoringService.Domain.Enums;
 using Workshop.Messaging.Abstractions;
+using Workshop.Messaging.Configuration;
 using Workshop.Messaging.Events;
 using Workshop.Messaging.Implementation;
 
@@ -15,14 +17,23 @@ namespace MonitoringService.Infrastructure.Messaging;
 /// </summary>
 public class DeviceEventConsumer : RabbitMQConsumerBase
 {
+    protected override string QueueName => "monitoring.device-events";
+    protected override string[] RoutingKeys => new[] { "device.#" };
+
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<DeviceEventConsumer> _logger;
+
     public DeviceEventConsumer(
         IServiceProvider serviceProvider,
+        IOptions<RabbitMQOptions> options,
         ILogger<DeviceEventConsumer> logger)
-        : base(serviceProvider, logger, "monitoring.device-events", "device.#")
+        : base(options, logger)
     {
+        _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
-    protected override async Task HandleMessageAsync(string message, CancellationToken cancellationToken)
+    protected override async Task HandleMessageAsync(string message, string routingKey, CancellationToken cancellationToken)
     {
         try
         {
@@ -118,6 +129,10 @@ public class DeviceEventConsumer : RabbitMQConsumerBase
     {
         _logger.LogDebug("Processing DeviceHeartbeat event: {DeviceId}", evt.DeviceId);
 
+        // Extract additional data from HealthData dictionary
+        evt.HealthData.TryGetValue("DeviceName", out var deviceName);
+        evt.HealthData.TryGetValue("EventType", out var eventType);
+
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         var publisher = scope.ServiceProvider.GetRequiredService<IRabbitMQPublisher>();
@@ -135,18 +150,18 @@ public class DeviceEventConsumer : RabbitMQConsumerBase
                 continue;
 
             // Check if event type matches condition
-            if (rule.ConditionValue == evt.EventType || rule.ConditionValue == "*")
+            if (rule.ConditionValue == eventType || rule.ConditionValue == "*")
             {
                 _logger.LogInformation("Monitoring rule triggered by heartbeat: {RuleName} for device: {DeviceId}",
                     rule.Name, evt.DeviceId);
 
                 // Create alert
                 var alert = Alert.Create(
-                    title: $"{rule.Name} - {evt.DeviceName}",
-                    message: $"Device {evt.DeviceName} triggered event: {evt.EventType}",
+                    title: $"{rule.Name} - {deviceName ?? evt.DeviceId}",
+                    message: $"Device {deviceName ?? evt.DeviceId} triggered event: {eventType}",
                     severity: rule.AlertSeverity,
                     deviceId: evt.DeviceId,
-                    deviceName: evt.DeviceName,
+                    deviceName: deviceName ?? evt.DeviceId,
                     ruleId: rule.Id,
                     ruleName: rule.Name);
 
@@ -162,7 +177,7 @@ public class DeviceEventConsumer : RabbitMQConsumerBase
                     RuleId = rule.Id,
                     RuleName = rule.Name,
                     DeviceId = evt.DeviceId,
-                    DeviceName = evt.DeviceName,
+                    DeviceName = deviceName ?? evt.DeviceId,
                     Severity = rule.AlertSeverity.ToString(),
                     Message = alert.Message
                 }, cancellationToken);
