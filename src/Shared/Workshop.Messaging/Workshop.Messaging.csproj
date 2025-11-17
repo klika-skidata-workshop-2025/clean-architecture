@@ -10,7 +10,6 @@
     <PackageId>Workshop.Messaging</PackageId>
     <Version>1.0.0</Version>
     <Description>RabbitMQ messaging abstractions and event DTOs for the Skidata Workshop microservices</Description>
-    <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 
     <!-- Package generation settings -->
@@ -39,7 +38,6 @@
 
   <ItemGroup>
     <!-- Include package assets -->
-    <None Include="icon.png" Pack="true" PackagePath="/" Condition="Exists('icon.png')" />
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
