@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    Domain Layer
+    - Contains business entities, value objects, enums, and domain logic
+    - No dependencies on other layers
+    - No external dependencies (pure C#)
+    - Represents the core business rules
+  -->
+
+</Project>

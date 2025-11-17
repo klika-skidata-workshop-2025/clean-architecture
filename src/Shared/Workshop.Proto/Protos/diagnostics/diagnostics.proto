@@ -1,0 +1,296 @@
+// Diagnostics Service Protocol Buffer definition
+// Centralized logging, health monitoring, and diagnostics
+
+syntax = "proto3";
+
+option csharp_namespace = "Workshop.Contracts.Diagnostics";
+
+package workshop.diagnostics;
+
+import "google/protobuf/timestamp.proto";
+import "common/common.proto";
+
+// ==========================================
+// Diagnostics Service Definition
+// ==========================================
+
+// Diagnostics Service - System-wide health monitoring and logging
+// This service provides centralized diagnostics and health checks
+service DiagnosticsService {
+  // Query: Get overall system health
+  rpc GetSystemHealth(GetSystemHealthRequest) returns (GetSystemHealthResponse);
+
+  // Query: Get health of a specific service
+  rpc GetServiceHealth(GetServiceHealthRequest) returns (GetServiceHealthResponse);
+
+  // Query: Get error logs with filtering
+  rpc GetErrorLogs(GetErrorLogsRequest) returns (GetErrorLogsResponse);
+
+  // Command: Log an error (called by other services)
+  rpc LogError(LogErrorRequest) returns (LogErrorResponse);
+
+  // Query: Get system metrics
+  rpc GetSystemMetrics(GetSystemMetricsRequest) returns (GetSystemMetricsResponse);
+
+  // Query: Get service dependencies status
+  rpc GetServiceDependencies(GetServiceDependenciesRequest) returns (GetServiceDependenciesResponse);
+}
+
+// ==========================================
+// Enums
+// ==========================================
+
+// Log level for error logs
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_TRACE = 1;
+  LOG_LEVEL_DEBUG = 2;
+  LOG_LEVEL_INFO = 3;
+  LOG_LEVEL_WARNING = 4;
+  LOG_LEVEL_ERROR = 5;
+  LOG_LEVEL_CRITICAL = 6;
+}
+
+// Type of system component being monitored
+enum ComponentType {
+  COMPONENT_TYPE_UNSPECIFIED = 0;
+  COMPONENT_TYPE_SERVICE = 1;         // Microservice (Device, Monitoring, etc.)
+  COMPONENT_TYPE_DATABASE = 2;        // Database (PostgreSQL)
+  COMPONENT_TYPE_MESSAGE_BUS = 3;     // Message bus (RabbitMQ)
+  COMPONENT_TYPE_EXTERNAL_API = 4;    // External API dependency
+}
+
+// ==========================================
+// Request/Response Messages
+// ==========================================
+
+// GetSystemHealth - Get overall system health
+message GetSystemHealthRequest {
+  // No parameters - returns health of all components
+}
+
+message GetSystemHealthResponse {
+  // Overall system health status
+  common.HealthStatus overall_status = 1;
+
+  // Individual service health
+  repeated ServiceHealth services = 2;
+
+  // Infrastructure health
+  repeated ComponentHealth infrastructure = 3;
+
+  // When the health check was performed
+  google.protobuf.Timestamp checked_at = 4;
+
+  // Optional: Additional system information
+  map<string, string> system_info = 5;
+}
+
+// GetServiceHealth - Get health of a specific service
+message GetServiceHealthRequest {
+  string service_name = 1;  // e.g., "DeviceService", "MonitoringService"
+}
+
+message GetServiceHealthResponse {
+  ServiceHealth service = 1;
+}
+
+// GetErrorLogs - Query error logs
+message GetErrorLogsRequest {
+  // Optional: Filter by service name
+  string service_name = 1;
+
+  // Optional: Filter by minimum log level
+  LogLevel min_level = 2;
+
+  // Optional: Filter by time range
+  common.TimeRange time_range = 3;
+
+  // Optional: Search in message text
+  string search_text = 4;
+
+  // Pagination
+  common.PaginationRequest pagination = 5;
+}
+
+message GetErrorLogsResponse {
+  repeated ErrorLog logs = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+// LogError - Log an error from a service
+message LogErrorRequest {
+  string service_name = 1;
+  LogLevel level = 2;
+  string message = 3;
+  string category = 4;  // e.g., "Database", "MessageBus", "BusinessLogic"
+
+  // Optional: Exception details
+  optional string exception_type = 5;
+  optional string exception_message = 6;
+  optional string stack_trace = 7;
+
+  // Optional: Additional context
+  map<string, string> metadata = 8;
+}
+
+message LogErrorResponse {
+  bool success = 1;
+  string log_id = 2;
+}
+
+// GetSystemMetrics - Get system-wide metrics
+message GetSystemMetricsRequest {
+  // Optional: Time range for metrics
+  common.TimeRange time_range = 1;
+}
+
+message GetSystemMetricsResponse {
+  // Total number of active devices
+  int64 total_devices = 1;
+
+  // Total number of active alerts
+  int64 active_alerts = 2;
+
+  // Total number of errors in time range
+  int64 error_count = 3;
+
+  // Average response time (milliseconds)
+  double average_response_time = 4;
+
+  // Request count per service
+  map<string, int64> requests_by_service = 5;
+
+  // Error count per service
+  map<string, int64> errors_by_service = 6;
+
+  // When metrics were calculated
+  google.protobuf.Timestamp calculated_at = 7;
+}
+
+// GetServiceDependencies - Get dependency health
+message GetServiceDependenciesRequest {
+  string service_name = 1;
+}
+
+message GetServiceDependenciesResponse {
+  string service_name = 1;
+  repeated Dependency dependencies = 2;
+  common.HealthStatus overall_dependency_health = 3;
+}
+
+// ==========================================
+// Shared Data Transfer Objects
+// ==========================================
+
+// Service health information
+message ServiceHealth {
+  string service_name = 1;
+  common.HealthStatus status = 2;
+
+  // Uptime in seconds
+  int64 uptime_seconds = 3;
+
+  // Version information
+  string version = 4;
+
+  // When the service was last checked
+  google.protobuf.Timestamp last_checked = 5;
+
+  // Response time for health check (milliseconds)
+  double response_time_ms = 6;
+
+  // Optional: Additional health data
+  map<string, string> health_data = 7;
+
+  // Optional: Error message if unhealthy
+  optional string error_message = 8;
+}
+
+// Infrastructure component health
+message ComponentHealth {
+  string component_name = 1;
+  ComponentType component_type = 2;
+  common.HealthStatus status = 3;
+
+  // Connection string or endpoint (masked for security)
+  string endpoint = 4;
+
+  // Response time (milliseconds)
+  double response_time_ms = 5;
+
+  // When checked
+  google.protobuf.Timestamp last_checked = 6;
+
+  // Optional: Error message if unhealthy
+  optional string error_message = 7;
+
+  // Optional: Additional component info
+  map<string, string> component_info = 8;
+}
+
+// Error log entry
+message ErrorLog {
+  string log_id = 1;
+  string service_name = 2;
+  LogLevel level = 3;
+  string message = 4;
+  string category = 5;
+
+  // When the error occurred
+  google.protobuf.Timestamp timestamp = 6;
+
+  // Exception details (if applicable)
+  optional ExceptionDetails exception = 7;
+
+  // Additional context
+  map<string, string> metadata = 8;
+}
+
+// Exception details
+message ExceptionDetails {
+  string exception_type = 1;
+  string exception_message = 2;
+  string stack_trace = 3;
+
+  // Optional: Inner exception
+  optional ExceptionDetails inner_exception = 4;
+}
+
+// Service dependency information
+message Dependency {
+  string dependency_name = 1;
+  ComponentType dependency_type = 2;
+  common.HealthStatus status = 3;
+
+  // Is this dependency critical for service operation?
+  bool is_critical = 4;
+
+  // Response time (milliseconds)
+  double response_time_ms = 5;
+
+  // When last checked
+  google.protobuf.Timestamp last_checked = 6;
+
+  // Optional: Error message if unhealthy
+  optional string error_message = 7;
+}
+
+// Health check snapshot
+// Used by background jobs to store periodic health checks
+message HealthSnapshot {
+  string snapshot_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+
+  // Overall system health at this time
+  common.HealthStatus overall_status = 3;
+
+  // Service health snapshots
+  repeated ServiceHealth services = 4;
+
+  // Infrastructure health snapshots
+  repeated ComponentHealth infrastructure = 5;
+
+  // Key metrics at this time
+  map<string, string> metrics = 6;
+}

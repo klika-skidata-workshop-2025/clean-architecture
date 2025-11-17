@@ -1,0 +1,119 @@
+// Common Protocol Buffer definitions shared across all workshop services.
+// These types are used by multiple services to ensure consistency.
+
+syntax = "proto3";
+
+option csharp_namespace = "Workshop.Contracts.Common";
+
+package workshop.common;
+
+// Common timestamp representation
+// Using google.protobuf.Timestamp for interoperability
+import "google/protobuf/timestamp.proto";
+
+// ==========================================
+// Common Enums
+// ==========================================
+
+// Health status of a service or component
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;  // Unknown or not set
+  HEALTH_STATUS_HEALTHY = 1;      // Service is healthy and operational
+  HEALTH_STATUS_DEGRADED = 2;     // Service is operational but experiencing issues
+  HEALTH_STATUS_UNHEALTHY = 3;    // Service is not operational
+}
+
+// Severity level for alerts and errors
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;  // Unknown or not set
+  SEVERITY_INFO = 1;         // Informational message
+  SEVERITY_WARNING = 2;      // Warning that doesn't require immediate action
+  SEVERITY_ERROR = 3;        // Error that needs attention
+  SEVERITY_CRITICAL = 4;     // Critical error requiring immediate action
+}
+
+// ==========================================
+// Common Messages
+// ==========================================
+
+// Standard error details for failed operations
+// This provides consistent error information across all services
+message ErrorDetails {
+  // Machine-readable error code (e.g., "DEVICE_NOT_FOUND")
+  string code = 1;
+
+  // Human-readable error message
+  string message = 2;
+
+  // Additional context as key-value pairs
+  // Example: {"deviceId": "gate-42", "expectedStatus": "ACTIVE"}
+  map<string, string> metadata = 3;
+}
+
+// Pagination request parameters
+// Used for any endpoint that returns lists of items
+message PaginationRequest {
+  // Page number (0-indexed)
+  int32 page = 1;
+
+  // Number of items per page (max 100)
+  int32 page_size = 2;
+
+  // Optional: Sort field (e.g., "created_at", "name")
+  string sort_by = 3;
+
+  // Optional: Sort direction ("asc" or "desc")
+  string sort_direction = 4;
+}
+
+// Pagination response metadata
+// Included in list responses to help clients navigate pages
+message PaginationResponse {
+  // Current page number (0-indexed)
+  int32 current_page = 1;
+
+  // Number of items per page
+  int32 page_size = 2;
+
+  // Total number of items across all pages
+  int64 total_items = 3;
+
+  // Total number of pages
+  int32 total_pages = 4;
+
+  // Whether there is a next page
+  bool has_next = 5;
+
+  // Whether there is a previous page
+  bool has_previous = 6;
+}
+
+// Time range for querying time-based data
+// Used by Diagnostics service for log queries
+message TimeRange {
+  // Start of the time range (inclusive)
+  google.protobuf.Timestamp start = 1;
+
+  // End of the time range (inclusive)
+  google.protobuf.Timestamp end = 2;
+}
+
+// Generic key-value metadata
+// Used for extensibility without changing proto definitions
+message Metadata {
+  map<string, string> properties = 1;
+}
+
+// ==========================================
+// Standard Response Wrappers
+// ==========================================
+
+// Empty response for operations that don't return data
+// More explicit than using google.protobuf.Empty
+message SuccessResponse {
+  // Whether the operation succeeded
+  bool success = 1;
+
+  // Optional message describing the result
+  string message = 2;
+}

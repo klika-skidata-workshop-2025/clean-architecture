@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    Infrastructure Layer
+    - Implements interfaces defined in Application layer
+    - Contains EF Core DbContext and configurations
+    - Contains RabbitMQ consumers
+    - External service integrations
+  -->
+
+  <ItemGroup>
+    <!-- Layer dependencies -->
+    <ProjectReference Include="..\ServiceTemplate.Application\ServiceTemplate.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Entity Framework Core with PostgreSQL -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <!-- Configuration and DI -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!-- Workshop shared packages -->
+    <PackageReference Include="Workshop.Messaging" Version="1.0.0" Condition="'$(UseWorkshopNuGet)' == 'true'" />
+
+    <!-- For development without NuGet -->
+    <ProjectReference Include="..\..\..\..\Shared\Workshop.Messaging\Workshop.Messaging.csproj" Condition="'$(UseWorkshopNuGet)' != 'true'" />
+  </ItemGroup>
+
+</Project>

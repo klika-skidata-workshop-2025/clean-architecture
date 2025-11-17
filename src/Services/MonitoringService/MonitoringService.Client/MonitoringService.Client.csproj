@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+
+    <!-- NuGet Package Metadata -->
+    <Title>MonitoringService gRPC Client Library</Title>
+    <Description>Client library for MonitoringService microservice. Provides a strongly-typed gRPC client for managing alerts and monitoring rules.</Description>
+    <PackageTags>microservices;grpc;client;clean-architecture;workshop;skidata;monitoring</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Workshop.Proto" />
+    <PackageReference Include="Workshop.Common" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,260 @@
+# Docker Compose configuration for Skidata Workshop 2025
+# This file orchestrates all services and infrastructure for the workshop
+
+version: '3.8'
+
+# ==========================================
+# SERVICES
+# ==========================================
+
+services:
+
+  # ==========================================
+  # Infrastructure Services
+  # ==========================================
+
+  # RabbitMQ - Message Bus for event-driven communication
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: workshop-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP protocol
+      - "15672:15672"  # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: workshop
+      RABBITMQ_DEFAULT_PASS: workshop123
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - workshop-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL - Device Service Database
+  postgres-device:
+    image: postgres:16-alpine
+    container_name: workshop-postgres-device
+    hostname: postgres-device
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: devicedb
+      POSTGRES_USER: workshop
+      POSTGRES_PASSWORD: workshop123
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - device-db-data:/var/lib/postgresql/data
+    networks:
+      - workshop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workshop -d devicedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL - Monitoring Service Database
+  postgres-monitoring:
+    image: postgres:16-alpine
+    container_name: workshop-postgres-monitoring
+    hostname: postgres-monitoring
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: monitoringdb
+      POSTGRES_USER: workshop
+      POSTGRES_PASSWORD: workshop123
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - monitoring-db-data:/var/lib/postgresql/data
+    networks:
+      - workshop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workshop -d monitoringdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL - Diagnostics Service Database
+  postgres-diagnostics:
+    image: postgres:16-alpine
+    container_name: workshop-postgres-diagnostics
+    hostname: postgres-diagnostics
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: diagnosticsdb
+      POSTGRES_USER: workshop
+      POSTGRES_PASSWORD: workshop123
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - diagnostics-db-data:/var/lib/postgresql/data
+    networks:
+      - workshop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workshop -d diagnosticsdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==========================================
+  # Microservices
+  # ==========================================
+
+  # Device Service - Manages physical devices (gates, lifts, counters)
+  device-service:
+    build:
+      context: .
+      dockerfile: src/Services/DeviceService/DeviceService.App/Dockerfile
+    container_name: workshop-device-service
+    hostname: device-service
+    ports:
+      - "5001:8080"  # gRPC endpoint
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=postgres-device;Port=5432;Database=devicedb;Username=workshop;Password=workshop123"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__Username: workshop
+      RabbitMQ__Password: workshop123
+      DeviceService__ServiceName: "Device Service"
+      DeviceService__Port: 8080
+      DeviceService__EnableGrpcReflection: "true"
+    depends_on:
+      postgres-device:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - workshop-network
+    restart: unless-stopped
+
+  # Monitoring Service - Real-time monitoring and alerting
+  monitoring-service:
+    build:
+      context: .
+      dockerfile: src/Services/MonitoringService/MonitoringService.App/Dockerfile
+    container_name: workshop-monitoring-service
+    hostname: monitoring-service
+    ports:
+      - "5002:8080"  # gRPC endpoint
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=postgres-monitoring;Port=5432;Database=monitoringdb;Username=workshop;Password=workshop123"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__Username: workshop
+      RabbitMQ__Password: workshop123
+      MonitoringService__ServiceName: "Monitoring Service"
+      MonitoringService__Port: 8080
+      MonitoringService__EnableGrpcReflection: "true"
+      GrpcServices__DeviceService: "http://device-service:8080"
+    depends_on:
+      postgres-monitoring:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      device-service:
+        condition: service_started
+    networks:
+      - workshop-network
+    restart: unless-stopped
+
+  # Diagnostics Service - Health checks and logging
+  diagnostics-service:
+    build:
+      context: .
+      dockerfile: src/Services/DiagnosticsService/DiagnosticsService.App/Dockerfile
+    container_name: workshop-diagnostics-service
+    hostname: diagnostics-service
+    ports:
+      - "5003:8080"  # gRPC endpoint
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=postgres-diagnostics;Port=5432;Database=diagnosticsdb;Username=workshop;Password=workshop123"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__Username: workshop
+      RabbitMQ__Password: workshop123
+      DiagnosticsService__ServiceName: "Diagnostics Service"
+      DiagnosticsService__Port: 8080
+      DiagnosticsService__EnableGrpcReflection: "true"
+      GrpcServices__DeviceService: "http://device-service:8080"
+      GrpcServices__MonitoringService: "http://monitoring-service:8080"
+    depends_on:
+      postgres-diagnostics:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      device-service:
+        condition: service_started
+      monitoring-service:
+        condition: service_started
+    networks:
+      - workshop-network
+    restart: unless-stopped
+
+  # Workshop Orchestrator - REST API demonstration
+  orchestrator:
+    build:
+      context: .
+      dockerfile: src/Orchestrator/Workshop.Orchestrator/Dockerfile
+    container_name: workshop-orchestrator
+    hostname: orchestrator
+    ports:
+      - "5000:8080"  # REST API endpoint with Swagger UI
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Services__DeviceService: "http://device-service:8080"
+      Services__MonitoringService: "http://monitoring-service:8080"
+      Services__DiagnosticsService: "http://diagnostics-service:8080"
+    depends_on:
+      device-service:
+        condition: service_started
+      monitoring-service:
+        condition: service_started
+      diagnostics-service:
+        condition: service_started
+    networks:
+      - workshop-network
+    restart: unless-stopped
+
+# ==========================================
+# NETWORKS
+# ==========================================
+
+networks:
+  workshop-network:
+    driver: bridge
+    name: workshop-network
+
+# ==========================================
+# VOLUMES
+# ==========================================
+
+volumes:
+  # RabbitMQ persistent storage
+  rabbitmq-data:
+    name: workshop-rabbitmq-data
+
+  # PostgreSQL persistent storage
+  device-db-data:
+    name: workshop-device-db-data
+
+  monitoring-db-data:
+    name: workshop-monitoring-db-data
+
+  diagnostics-db-data:
+    name: workshop-diagnostics-db-data

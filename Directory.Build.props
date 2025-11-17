@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <!-- Common properties for all projects -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- Assembly information -->
+    <Company>Skidata Workshop 2025</Company>
+    <Authors>Klika Skidata Workshop Team</Authors>
+    <Copyright>Copyright © Skidata Workshop 2025</Copyright>
+    <RepositoryUrl>https://github.com/klika-skidata-workshop-2025/clean-architecture</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <!-- NuGet package defaults -->
+    <PackageProjectUrl>https://github.com/klika-skidata-workshop-2025/clean-architecture</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>workshop;microservices;clean-architecture;cqrs;grpc;rabbitmq</PackageTags>
+  </PropertyGroup>
+</Project>

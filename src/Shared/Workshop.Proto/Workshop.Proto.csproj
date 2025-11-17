@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+
+    <!--
+      NuGet Package Configuration
+      This library contains Protocol Buffer definitions for all workshop services.
+      It is the foundation for contract-first development across the system.
+    -->
+    <PackageId>Workshop.Proto</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Protocol Buffer definitions for the Skidata Workshop microservices. Defines contracts for Device, Monitoring, and Diagnostics services.</Description>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Package generation settings -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Disable warnings for generated code -->
+    <NoWarn>$(NoWarn);CS1591;CS8600;CS8602;CS8603;CS8604</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      gRPC and Protocol Buffers packages
+      These are required for code generation from .proto files
+    -->
+    <PackageReference Include="Grpc.Tools">
+      <!-- PrivateAssets="All" prevents this from being a transitive dependency -->
+      <PrivateAssets>All</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Proto file configuration
+      GrpcServices="Both" generates both client and server code
+      This allows services to consume each other's contracts
+
+      ProtoRoot sets the base path for imports
+      AdditionalImportDirs specifies where to find imported protos
+    -->
+    <Protobuf Include="Protos/common/*.proto" GrpcServices="None" ProtoRoot="Protos" />
+    <Protobuf Include="Protos/device/*.proto" GrpcServices="Both" ProtoRoot="Protos" AdditionalImportDirs="Protos" />
+    <Protobuf Include="Protos/monitoring/*.proto" GrpcServices="Both" ProtoRoot="Protos" AdditionalImportDirs="Protos" />
+    <Protobuf Include="Protos/diagnostics/*.proto" GrpcServices="Both" ProtoRoot="Protos" AdditionalImportDirs="Protos" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Include proto files in the NuGet package -->
+    <None Include="Protos/**/*.proto" Pack="true" PackagePath="protos" />
+
+    <!-- Include package assets -->
+    <None Include="icon.png" Pack="true" PackagePath="/" Condition="Exists('icon.png')" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

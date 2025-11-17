@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+
+    <!--
+      NuGet Package Configuration
+      This library is published to GitHub Packages and consumed by all workshop services.
+    -->
+    <PackageId>Workshop.Common</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Common utilities, Result pattern extensions, and shared types for the Skidata Workshop microservices</Description>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Package generation settings -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      FluentResults - Modern Result pattern library
+      Eliminates the need for exception-based error handling
+      Provides a functional, railway-oriented programming approach
+    -->
+    <PackageReference Include="FluentResults" />
+
+    <!--
+      Microsoft.Extensions.Logging.Abstractions
+      Provides ILogger interfaces for diagnostic logging
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+
+    <!--
+      Grpc.Core.Api - gRPC Core API for RpcException
+      Used for FluentResults to gRPC exception mapping
+    -->
+    <PackageReference Include="Grpc.Core.Api" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Include package assets -->
+    <None Include="icon.png" Pack="true" PackagePath="/" Condition="Exists('icon.png')" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

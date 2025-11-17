@@ -1,0 +1,52 @@
+# Docker Compose Override for Development
+# This file provides development-specific overrides
+# Automatically merged with docker-compose.yml when running docker-compose up
+
+version: '3.8'
+
+services:
+  # Override RabbitMQ for development
+  rabbitmq:
+    environment:
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 512MB
+
+  # Override PostgreSQL instances for development
+  postgres-device:
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust  # Allow connections without password (dev only!)
+
+  postgres-monitoring:
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  postgres-diagnostics:
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  # Override services for development (hot reload, debugging, etc.)
+  device-service:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Information
+      DeviceService__EnableDetailedErrors: "true"
+
+  monitoring-service:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Information
+      MonitoringService__EnableDetailedErrors: "true"
+
+  diagnostics-service:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Information
+      DiagnosticsService__EnableDetailedErrors: "true"
+
+  orchestrator:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft: Information

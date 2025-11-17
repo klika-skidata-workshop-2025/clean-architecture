@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" />
+    <PackageReference Include="Microsoft.AspNetCore.Grpc.HealthChecks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DiagnosticsService.Application\DiagnosticsService.Application.csproj" />
+    <ProjectReference Include="..\DiagnosticsService.Infrastructure\DiagnosticsService.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Workshop.Proto" />
+    <PackageReference Include="Workshop.Common" />
+  </ItemGroup>
+
+</Project>

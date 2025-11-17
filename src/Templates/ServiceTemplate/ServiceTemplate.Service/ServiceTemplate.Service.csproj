@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+
+    <!-- NuGet Package Metadata -->
+    <Title>ServiceTemplate Service Library</Title>
+    <Description>Hostable service library for ServiceTemplate microservice. Can be hosted as Console app, Windows Service, or Docker container.</Description>
+    <PackageTags>microservices;grpc;clean-architecture;workshop</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Grpc.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ServiceTemplate.Application\ServiceTemplate.Application.csproj" />
+    <ProjectReference Include="..\ServiceTemplate.Infrastructure\ServiceTemplate.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Workshop.Proto" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,216 @@
+// Device Service Protocol Buffer definition
+// Manages physical devices (gates, lifts, counters, barriers, etc.)
+
+syntax = "proto3";
+
+option csharp_namespace = "Workshop.Contracts.Device";
+
+package workshop.device;
+
+import "google/protobuf/timestamp.proto";
+import "common/common.proto";
+
+// ==========================================
+// Device Service Definition
+// ==========================================
+
+// Device Service - Entry point for device management operations
+// This service handles all device-related commands and queries
+service DeviceService {
+  // Query: Get current status of a specific device
+  rpc GetDeviceStatus(GetDeviceStatusRequest) returns (GetDeviceStatusResponse);
+
+  // Query: List all devices with optional filtering
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+
+  // Command: Update device configuration or status
+  rpc UpdateDevice(UpdateDeviceRequest) returns (UpdateDeviceResponse);
+
+  // Command: Register a new device
+  rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+
+  // Command: Simulate a device event (for testing/demo)
+  rpc SimulateDeviceEvent(SimulateDeviceEventRequest) returns (SimulateDeviceEventResponse);
+
+  // Query: Get device heartbeat history
+  rpc GetDeviceHeartbeats(GetDeviceHeartbeatsRequest) returns (GetDeviceHeartbeatsResponse);
+}
+
+// ==========================================
+// Enums
+// ==========================================
+
+// Status of a physical device
+enum DeviceStatus {
+  DEVICE_STATUS_UNSPECIFIED = 0;   // Unknown or not set
+  DEVICE_STATUS_ACTIVE = 1;        // Device is operational and processing events
+  DEVICE_STATUS_INACTIVE = 2;      // Device is registered but not active
+  DEVICE_STATUS_MAINTENANCE = 3;   // Device is under maintenance
+  DEVICE_STATUS_BLOCKED = 4;       // Device is blocked due to error or security
+  DEVICE_STATUS_OFFLINE = 5;       // Device is not responding
+  DEVICE_STATUS_ERROR = 6;         // Device is in error state
+}
+
+// Type of physical device
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;     // Unknown device type
+  DEVICE_TYPE_GATE = 1;            // Access gate (entry/exit)
+  DEVICE_TYPE_BARRIER = 2;         // Parking barrier
+  DEVICE_TYPE_TURNSTILE = 3;       // Pedestrian turnstile
+  DEVICE_TYPE_LIFT = 4;            // Ski lift or elevator
+  DEVICE_TYPE_COUNTER = 5;         // People/vehicle counter
+  DEVICE_TYPE_READER = 6;          // Card/ticket reader
+}
+
+// Type of device event
+enum DeviceEventType {
+  DEVICE_EVENT_TYPE_UNSPECIFIED = 0;     // Unknown event
+  DEVICE_EVENT_TYPE_STATUS_CHANGED = 1;  // Device status changed
+  DEVICE_EVENT_TYPE_HEARTBEAT = 2;       // Regular heartbeat signal
+  DEVICE_EVENT_TYPE_ACCESS_GRANTED = 3;  // Access was granted
+  DEVICE_EVENT_TYPE_ACCESS_DENIED = 4;   // Access was denied
+  DEVICE_EVENT_TYPE_ERROR = 5;           // Error occurred
+  DEVICE_EVENT_TYPE_MAINTENANCE = 6;     // Maintenance event
+}
+
+// ==========================================
+// Request/Response Messages
+// ==========================================
+
+// GetDeviceStatus - Query current device status
+message GetDeviceStatusRequest {
+  // Unique identifier of the device (e.g., "gate-42", "lift-north-1")
+  string device_id = 1;
+}
+
+message GetDeviceStatusResponse {
+  string device_id = 1;
+  string device_name = 2;
+  DeviceType device_type = 3;
+  DeviceStatus status = 4;
+  google.protobuf.Timestamp last_updated = 5;
+  google.protobuf.Timestamp last_heartbeat = 6;
+
+  // Optional: Location information
+  string location = 7;
+
+  // Optional: Additional metadata
+  map<string, string> metadata = 8;
+}
+
+// ListDevices - Query all devices with filtering
+message ListDevicesRequest {
+  // Optional: Filter by device type
+  DeviceType device_type = 1;
+
+  // Optional: Filter by status
+  DeviceStatus status = 2;
+
+  // Optional: Filter by location
+  string location = 3;
+
+  // Pagination
+  common.PaginationRequest pagination = 4;
+}
+
+message ListDevicesResponse {
+  repeated DeviceInfo devices = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+// UpdateDevice - Update device configuration or status
+message UpdateDeviceRequest {
+  string device_id = 1;
+
+  // Optional: New status (if not set, status won't change)
+  optional DeviceStatus status = 2;
+
+  // Optional: New location
+  optional string location = 3;
+
+  // Optional: Additional metadata to update
+  map<string, string> metadata = 4;
+
+  // Reason for the update (for audit trail)
+  string reason = 5;
+}
+
+message UpdateDeviceResponse {
+  bool success = 1;
+  string message = 2;
+  DeviceInfo device = 3;
+}
+
+// RegisterDevice - Register a new device
+message RegisterDeviceRequest {
+  string device_id = 1;
+  string device_name = 2;
+  DeviceType device_type = 3;
+  string location = 4;
+
+  // Optional: Initial metadata
+  map<string, string> metadata = 5;
+}
+
+message RegisterDeviceResponse {
+  bool success = 1;
+  string message = 2;
+  DeviceInfo device = 3;
+}
+
+// SimulateDeviceEvent - Simulate a device event (for testing)
+message SimulateDeviceEventRequest {
+  string device_id = 1;
+  DeviceEventType event_type = 2;
+
+  // Optional: Additional event data
+  map<string, string> event_data = 3;
+}
+
+message SimulateDeviceEventResponse {
+  bool success = 1;
+  string message = 2;
+  string event_id = 3;
+}
+
+// GetDeviceHeartbeats - Get heartbeat history
+message GetDeviceHeartbeatsRequest {
+  string device_id = 1;
+
+  // Optional: Time range for heartbeats
+  common.TimeRange time_range = 2;
+
+  // Optional: Limit number of results
+  int32 limit = 3;
+}
+
+message GetDeviceHeartbeatsResponse {
+  repeated DeviceHeartbeat heartbeats = 1;
+}
+
+// ==========================================
+// Shared Data Transfer Objects
+// ==========================================
+
+// Basic device information
+message DeviceInfo {
+  string device_id = 1;
+  string device_name = 2;
+  DeviceType device_type = 3;
+  DeviceStatus status = 4;
+  string location = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp last_updated = 7;
+  google.protobuf.Timestamp last_heartbeat = 8;
+  map<string, string> metadata = 9;
+}
+
+// Device heartbeat record
+message DeviceHeartbeat {
+  string device_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  DeviceStatus status = 3;
+
+  // Optional: Additional health data
+  map<string, string> health_data = 4;
+}

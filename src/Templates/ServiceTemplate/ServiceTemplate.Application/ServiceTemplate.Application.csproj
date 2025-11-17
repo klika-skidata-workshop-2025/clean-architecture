@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    Application Layer
+    - Contains business logic and use cases
+    - Implements CQRS pattern with MediatR
+    - Uses FluentValidation for input validation
+    - Orchestrates domain objects
+    - Returns Result<T> instead of throwing exceptions
+  -->
+
+  <ItemGroup>
+    <!-- Domain layer dependency -->
+    <ProjectReference Include="..\ServiceTemplate.Domain\ServiceTemplate.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MediatR for CQRS pattern -->
+    <PackageReference Include="MediatR" />
+
+    <!-- FluentValidation for request validation -->
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+
+    <!-- FluentResults for error handling -->
+    <PackageReference Include="FluentResults" />
+
+    <!-- Workshop shared packages -->
+    <PackageReference Include="Workshop.Common" Version="1.0.0" Condition="'$(UseWorkshopNuGet)' == 'true'" />
+
+    <!-- For development without NuGet -->
+    <ProjectReference Include="..\..\..\..\Shared\Workshop.Common\Workshop.Common.csproj" Condition="'$(UseWorkshopNuGet)' != 'true'" />
+  </ItemGroup>
+
+</Project>

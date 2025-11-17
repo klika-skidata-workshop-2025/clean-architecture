@@ -1,0 +1,269 @@
+// Monitoring Service Protocol Buffer definition
+// Monitors device events and triggers alerts based on rules
+
+syntax = "proto3";
+
+option csharp_namespace = "Workshop.Contracts.Monitoring";
+
+package workshop.monitoring;
+
+import "google/protobuf/timestamp.proto";
+import "common/common.proto";
+
+// ==========================================
+// Monitoring Service Definition
+// ==========================================
+
+// Monitoring Service - Real-time monitoring and alerting
+// This service processes device events and triggers alerts based on rules
+service MonitoringService {
+  // Query: Get active (unacknowledged) alerts
+  rpc GetActiveAlerts(GetActiveAlertsRequest) returns (GetActiveAlertsResponse);
+
+  // Query: Get alert history with filtering
+  rpc GetAlertHistory(GetAlertHistoryRequest) returns (GetAlertHistoryResponse);
+
+  // Query: Get alert details
+  rpc GetAlert(GetAlertRequest) returns (GetAlertResponse);
+
+  // Command: Acknowledge an alert
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse);
+
+  // Query: List monitoring rules
+  rpc ListMonitoringRules(ListMonitoringRulesRequest) returns (ListMonitoringRulesResponse);
+
+  // Command: Create a monitoring rule
+  rpc CreateMonitoringRule(CreateMonitoringRuleRequest) returns (CreateMonitoringRuleResponse);
+
+  // Command: Update a monitoring rule
+  rpc UpdateMonitoringRule(UpdateMonitoringRuleRequest) returns (UpdateMonitoringRuleResponse);
+
+  // Command: Delete a monitoring rule
+  rpc DeleteMonitoringRule(DeleteMonitoringRuleRequest) returns (DeleteMonitoringRuleResponse);
+}
+
+// ==========================================
+// Enums
+// ==========================================
+
+// Alert status lifecycle
+enum AlertStatus {
+  ALERT_STATUS_UNSPECIFIED = 0;       // Unknown or not set
+  ALERT_STATUS_ACTIVE = 1;            // Alert is active and unacknowledged
+  ALERT_STATUS_ACKNOWLEDGED = 2;      // Alert has been acknowledged
+  ALERT_STATUS_RESOLVED = 3;          // Alert has been resolved
+  ALERT_STATUS_AUTO_RESOLVED = 4;     // Alert was automatically resolved
+}
+
+// Type of monitoring rule condition
+enum RuleConditionType {
+  RULE_CONDITION_TYPE_UNSPECIFIED = 0;        // Unknown
+  RULE_CONDITION_TYPE_STATUS_EQUALS = 1;      // Device status equals value
+  RULE_CONDITION_TYPE_STATUS_CHANGED = 2;     // Device status changed
+  RULE_CONDITION_TYPE_OFFLINE_DURATION = 3;   // Device offline for duration
+  RULE_CONDITION_TYPE_EVENT_OCCURRED = 4;     // Specific event occurred
+  RULE_CONDITION_TYPE_HEARTBEAT_MISSED = 5;   // Heartbeat missed for duration
+}
+
+// Action to take when rule is triggered
+enum RuleActionType {
+  RULE_ACTION_TYPE_UNSPECIFIED = 0;           // Unknown
+  RULE_ACTION_TYPE_CREATE_ALERT = 1;          // Create an alert
+  RULE_ACTION_TYPE_SEND_NOTIFICATION = 2;     // Send notification (email/SMS)
+  RULE_ACTION_TYPE_CALL_DEVICE_SERVICE = 3;   // Make gRPC call to Device Service
+  RULE_ACTION_TYPE_ESCALATE = 4;              // Escalate to higher severity
+}
+
+// ==========================================
+// Request/Response Messages
+// ==========================================
+
+// GetActiveAlerts - Query active alerts
+message GetActiveAlertsRequest {
+  // Optional: Filter by device ID
+  string device_id = 1;
+
+  // Optional: Filter by minimum severity
+  common.Severity min_severity = 2;
+
+  // Pagination
+  common.PaginationRequest pagination = 3;
+}
+
+message GetActiveAlertsResponse {
+  repeated AlertInfo alerts = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+// GetAlertHistory - Query alert history
+message GetAlertHistoryRequest {
+  // Optional: Filter by device ID
+  string device_id = 1;
+
+  // Optional: Filter by alert status
+  AlertStatus status = 2;
+
+  // Optional: Time range
+  common.TimeRange time_range = 3;
+
+  // Pagination
+  common.PaginationRequest pagination = 4;
+}
+
+message GetAlertHistoryResponse {
+  repeated AlertInfo alerts = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+// GetAlert - Get alert details
+message GetAlertRequest {
+  string alert_id = 1;
+}
+
+message GetAlertResponse {
+  AlertInfo alert = 1;
+}
+
+// AcknowledgeAlert - Acknowledge an alert
+message AcknowledgeAlertRequest {
+  string alert_id = 1;
+
+  // User who acknowledged the alert
+  string acknowledged_by = 2;
+
+  // Optional: Notes about the acknowledgement
+  string notes = 3;
+}
+
+message AcknowledgeAlertResponse {
+  bool success = 1;
+  string message = 2;
+  AlertInfo alert = 3;
+}
+
+// ListMonitoringRules - List all monitoring rules
+message ListMonitoringRulesRequest {
+  // Optional: Filter by enabled status
+  optional bool enabled = 1;
+
+  // Optional: Filter by severity
+  common.Severity severity = 2;
+
+  // Pagination
+  common.PaginationRequest pagination = 3;
+}
+
+message ListMonitoringRulesResponse {
+  repeated MonitoringRuleInfo rules = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+// CreateMonitoringRule - Create a new monitoring rule
+message CreateMonitoringRuleRequest {
+  string rule_name = 1;
+  string description = 2;
+  RuleConditionType condition_type = 3;
+  common.Severity severity = 4;
+  bool enabled = 5;
+
+  // Rule-specific configuration (JSON or key-value)
+  map<string, string> configuration = 6;
+
+  // Actions to take when rule triggers
+  repeated RuleActionType actions = 7;
+}
+
+message CreateMonitoringRuleResponse {
+  bool success = 1;
+  string message = 2;
+  MonitoringRuleInfo rule = 3;
+}
+
+// UpdateMonitoringRule - Update existing rule
+message UpdateMonitoringRuleRequest {
+  string rule_id = 1;
+
+  // Optional fields to update
+  optional string rule_name = 2;
+  optional string description = 3;
+  optional bool enabled = 4;
+  optional common.Severity severity = 5;
+
+  // Optional: Update configuration
+  map<string, string> configuration = 6;
+
+  // Optional: Update actions
+  repeated RuleActionType actions = 7;
+}
+
+message UpdateMonitoringRuleResponse {
+  bool success = 1;
+  string message = 2;
+  MonitoringRuleInfo rule = 3;
+}
+
+// DeleteMonitoringRule - Delete a rule
+message DeleteMonitoringRuleRequest {
+  string rule_id = 1;
+}
+
+message DeleteMonitoringRuleResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ==========================================
+// Shared Data Transfer Objects
+// ==========================================
+
+// Alert information
+message AlertInfo {
+  string alert_id = 1;
+  string device_id = 2;
+  string device_name = 3;
+  common.Severity severity = 4;
+  AlertStatus status = 5;
+  string title = 6;
+  string description = 7;
+
+  // When the alert was triggered
+  google.protobuf.Timestamp triggered_at = 8;
+
+  // When the alert was acknowledged (if applicable)
+  optional google.protobuf.Timestamp acknowledged_at = 9;
+  optional string acknowledged_by = 10;
+
+  // When the alert was resolved (if applicable)
+  optional google.protobuf.Timestamp resolved_at = 11;
+
+  // Rule that triggered this alert
+  string rule_id = 12;
+  string rule_name = 13;
+
+  // Additional context
+  map<string, string> metadata = 14;
+}
+
+// Monitoring rule information
+message MonitoringRuleInfo {
+  string rule_id = 1;
+  string rule_name = 2;
+  string description = 3;
+  RuleConditionType condition_type = 4;
+  common.Severity severity = 5;
+  bool enabled = 6;
+
+  // Rule configuration (specific to condition type)
+  map<string, string> configuration = 7;
+
+  // Actions to execute when triggered
+  repeated RuleActionType actions = 8;
+
+  // Statistics
+  int32 times_triggered = 9;
+  optional google.protobuf.Timestamp last_triggered = 10;
+
+  // Timestamps
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}

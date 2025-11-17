@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+
+    <!-- NuGet Package Metadata -->
+    <Title>DeviceService gRPC Client Library</Title>
+    <Description>Client library for DeviceService microservice. Provides a strongly-typed gRPC client for managing devices (gates, lifts, counters, controls).</Description>
+    <PackageTags>microservices;grpc;client;clean-architecture;workshop;skidata;devices</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Workshop.Proto" />
+    <PackageReference Include="Workshop.Common" />
+  </ItemGroup>
+
+</Project>
