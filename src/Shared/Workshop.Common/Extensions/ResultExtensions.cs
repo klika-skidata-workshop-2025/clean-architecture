@@ -121,6 +121,53 @@ public static class ResultExtensions
     }
 
     /// <summary>
+    /// Matches a Result asynchronously with async success handler and transforms it to a response type.
+    /// Use this when the success handler needs to perform async operations.
+    /// </summary>
+    /// <typeparam name="T">The type of the successful result value</typeparam>
+    /// <typeparam name="TResponse">The type of the response to return</typeparam>
+    /// <param name="result">The Result to match on</param>
+    /// <param name="onSuccess">Async function to execute on success path</param>
+    /// <param name="onFailure">Function to execute on failure path</param>
+    /// <returns>The transformed response if successful</returns>
+    /// <exception cref="RpcException">Thrown if the result is a failure</exception>
+    public static async Task<TResponse> MatchAsync<T, TResponse>(
+        this Result<T> result,
+        Func<T, Task<TResponse>> onSuccess,
+        Func<ResultBase, RpcException> onFailure)
+    {
+        if (result.IsSuccess)
+        {
+            return await onSuccess(result.Value);
+        }
+
+        throw onFailure(result);
+    }
+
+    /// <summary>
+    /// Matches a non-generic Result asynchronously with async success handler.
+    /// Use this for commands that return Result (not Result&lt;T&gt;).
+    /// </summary>
+    /// <typeparam name="TResponse">The type of the response to return</typeparam>
+    /// <param name="result">The Result to match on</param>
+    /// <param name="onSuccess">Async function to execute on success path</param>
+    /// <param name="onFailure">Function to execute on failure path</param>
+    /// <returns>The transformed response if successful</returns>
+    /// <exception cref="RpcException">Thrown if the result is a failure</exception>
+    public static async Task<TResponse> MatchAsync<TResponse>(
+        this Result result,
+        Func<Task<TResponse>> onSuccess,
+        Func<ResultBase, RpcException> onFailure)
+    {
+        if (result.IsSuccess)
+        {
+            return await onSuccess();
+        }
+
+        throw onFailure(result);
+    }
+
+    /// <summary>
     /// Executes an action asynchronously if the result is successful, otherwise throws an RpcException.
     /// Useful for command handlers that don't return values.
     /// </summary>

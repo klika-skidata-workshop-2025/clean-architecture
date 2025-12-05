@@ -19,7 +19,7 @@ public static class DependencyInjection
         string serviceUrl)
     {
         // Register gRPC client
-        services.AddGrpcClient<Workshop.Proto.Device.DeviceService.DeviceServiceClient>(options =>
+        services.AddGrpcClient<Workshop.Contracts.Device.DeviceService.DeviceServiceClient>(options =>
         {
             options.Address = new Uri(serviceUrl);
         })
@@ -50,7 +50,7 @@ public static class DependencyInjection
         Action<GrpcClientFactoryOptions> configureClient)
     {
         // Register gRPC client with custom configuration
-        var clientBuilder = services.AddGrpcClient<Workshop.Proto.Device.DeviceService.DeviceServiceClient>(options =>
+        var clientBuilder = services.AddGrpcClient<Workshop.Contracts.Device.DeviceService.DeviceServiceClient>(options =>
         {
             options.Address = new Uri(serviceUrl);
             configureClient(options);

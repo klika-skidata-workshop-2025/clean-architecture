@@ -41,8 +41,8 @@ public class ServiceHost : IAsyncDisposable
         // Ensure database is created and migrated
         await _app.Services.EnsureDatabaseAsync();
 
-        // Run the application
-        await _app.RunAsync(cancellationToken);
+        // Run the application (use url: null to use configured URLs)
+        await _app.RunAsync(url: null);
     }
 
     /// <summary>

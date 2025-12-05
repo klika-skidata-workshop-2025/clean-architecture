@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
-using Workshop.Proto.Monitoring;
+using Workshop.Contracts.Monitoring;
+using Workshop.Contracts.Common;
 
 namespace MonitoringService.Client;
 
@@ -9,11 +10,11 @@ namespace MonitoringService.Client;
 /// </summary>
 public class MonitoringServiceClient
 {
-    private readonly Workshop.Proto.Monitoring.MonitoringService.MonitoringServiceClient _client;
+    private readonly Workshop.Contracts.Monitoring.MonitoringService.MonitoringServiceClient _client;
     private readonly ILogger<MonitoringServiceClient> _logger;
 
     public MonitoringServiceClient(
-        Workshop.Proto.Monitoring.MonitoringService.MonitoringServiceClient client,
+        Workshop.Contracts.Monitoring.MonitoringService.MonitoringServiceClient client,
         ILogger<MonitoringServiceClient> logger)
     {
         _client = client;
@@ -21,7 +22,7 @@ public class MonitoringServiceClient
     }
 
     public async Task<GetActiveAlertsResponse> GetActiveAlertsAsync(
-        Workshop.Proto.Common.Severity? minimumSeverity = null,
+        Severity? minimumSeverity = null,
         string? deviceId = null,
         int pageNumber = 1,
         int pageSize = 20,
@@ -31,10 +32,13 @@ public class MonitoringServiceClient
         {
             var request = new GetActiveAlertsRequest
             {
-                MinimumSeverity = minimumSeverity ?? Workshop.Proto.Common.Severity.Unspecified,
+                MinSeverity = minimumSeverity ?? Severity.Unspecified,
                 DeviceId = deviceId ?? string.Empty,
-                PageNumber = pageNumber,
-                PageSize = pageSize
+                Pagination = new PaginationRequest
+                {
+                    Page = pageNumber,
+                    PageSize = pageSize
+                }
             };
 
             return await _client.GetActiveAlertsAsync(request, cancellationToken: cancellationToken);
@@ -78,12 +82,15 @@ public class MonitoringServiceClient
         {
             var request = new ListMonitoringRulesRequest
             {
-                PageNumber = pageNumber,
-                PageSize = pageSize
+                Pagination = new PaginationRequest
+                {
+                    Page = pageNumber,
+                    PageSize = pageSize
+                }
             };
 
             if (isEnabled.HasValue)
-                request.IsEnabled = isEnabled.Value;
+                request.Enabled = isEnabled.Value;
 
             return await _client.ListMonitoringRulesAsync(request, cancellationToken: cancellationToken);
         }
@@ -100,7 +107,7 @@ public class MonitoringServiceClient
         RuleConditionType conditionType,
         string conditionValue,
         RuleActionType actionType,
-        Workshop.Proto.Common.Severity alertSeverity,
+        Severity alertSeverity,
         string? deviceIdFilter = null,
         string? deviceTypeFilter = null,
         CancellationToken cancellationToken = default)
@@ -109,15 +116,22 @@ public class MonitoringServiceClient
         {
             var request = new CreateMonitoringRuleRequest
             {
-                Name = name,
+                RuleName = name,
                 Description = description,
                 ConditionType = conditionType,
-                ConditionValue = conditionValue,
-                ActionType = actionType,
-                AlertSeverity = alertSeverity,
-                DeviceIdFilter = deviceIdFilter ?? string.Empty,
-                DeviceTypeFilter = deviceTypeFilter ?? string.Empty
+                Severity = alertSeverity,
+                Enabled = true
             };
+
+            // Add configuration
+            request.Configuration.Add("condition_value", conditionValue);
+            if (!string.IsNullOrEmpty(deviceIdFilter))
+                request.Configuration.Add("device_id_filter", deviceIdFilter);
+            if (!string.IsNullOrEmpty(deviceTypeFilter))
+                request.Configuration.Add("device_type_filter", deviceTypeFilter);
+
+            // Add action
+            request.Actions.Add(actionType);
 
             return await _client.CreateMonitoringRuleAsync(request, cancellationToken: cancellationToken);
         }

@@ -10,15 +10,13 @@ using MonitoringService.Application.Features.Rules.Commands.DeleteMonitoringRule
 using MonitoringService.Application.Features.Rules.Commands.UpdateMonitoringRule;
 using MonitoringService.Application.Features.Rules.Queries.ListMonitoringRules;
 using Workshop.Common.Extensions;
-using Workshop.Proto.Monitoring;
+using Workshop.Contracts.Monitoring;
+using Workshop.Contracts.Common;
+using GrpcMonitoringService = Workshop.Contracts.Monitoring.MonitoringService;
 
 namespace MonitoringService.API.Services;
 
-/// <summary>
-/// gRPC service implementation for Monitoring Service.
-/// Maps proto definitions to CQRS commands and queries.
-/// </summary>
-public class MonitoringGrpcService : MonitoringService.MonitoringServiceBase
+public class MonitoringGrpcService : GrpcMonitoringService.MonitoringServiceBase
 {
     private readonly IMediator _mediator;
     private readonly ILogger<MonitoringGrpcService> _logger;
@@ -29,374 +27,253 @@ public class MonitoringGrpcService : MonitoringService.MonitoringServiceBase
         _logger = logger;
     }
 
-    public override async Task<GetActiveAlertsResponse> GetActiveAlerts(
-        GetActiveAlertsRequest request,
+    public override async Task<Workshop.Contracts.Monitoring.GetActiveAlertsResponse> GetActiveAlerts(
+        Workshop.Contracts.Monitoring.GetActiveAlertsRequest request,
         ServerCallContext context)
     {
         _logger.LogDebug("GetActiveAlerts called");
 
+        var pageNumber = request.Pagination?.Page ?? 0;
+        var pageSize = request.Pagination?.PageSize ?? 20;
+
         var query = new GetActiveAlertsQuery(
-            MinimumSeverity: request.MinimumSeverity != Workshop.Proto.Common.Severity.Unspecified
-                ? MapSeverityToDomain(request.MinimumSeverity)
-                : null,
+            MinimumSeverity: request.MinSeverity != Severity.Unspecified ? MapSeverityToDomain(request.MinSeverity) : null,
             DeviceId: !string.IsNullOrWhiteSpace(request.DeviceId) ? request.DeviceId : null,
-            PageNumber: request.PageNumber > 0 ? request.PageNumber : 1,
-            PageSize: request.PageSize > 0 ? request.PageSize : 20);
+            PageNumber: pageNumber > 0 ? pageNumber : 1,
+            PageSize: pageSize > 0 ? pageSize : 20);
 
-        var result = await _mediator.Send(query, context.CancellationToken);
-
-        return await result.MatchAsync(
+        return await _mediator.Send(query, context.CancellationToken).MatchAsync(
             dto =>
             {
-                var response = new GetActiveAlertsResponse
+                var response = new Workshop.Contracts.Monitoring.GetActiveAlertsResponse
                 {
-                    TotalCount = dto.TotalCount,
-                    PageNumber = dto.PageNumber,
-                    PageSize = dto.PageSize,
-                    TotalPages = dto.TotalPages
+                    Pagination = new PaginationResponse
+                    {
+                        CurrentPage = dto.PageNumber, PageSize = dto.PageSize, TotalItems = dto.TotalCount,
+                        TotalPages = dto.TotalPages, HasNext = dto.PageNumber < dto.TotalPages, HasPrevious = dto.PageNumber > 1
+                    }
                 };
-
-                response.Alerts.AddRange(dto.Alerts.Select(a => new AlertInfo
-                {
-                    AlertId = a.Id,
-                    Title = a.Title,
-                    Message = a.Message,
-                    Severity = MapSeverity(a.Severity),
-                    Status = MapAlertStatus(a.Status),
-                    DeviceId = a.DeviceId ?? string.Empty,
-                    DeviceName = a.DeviceName ?? string.Empty,
-                    RuleId = a.RuleId ?? string.Empty,
-                    RuleName = a.RuleName ?? string.Empty,
-                    AcknowledgedBy = a.AcknowledgedBy ?? string.Empty,
-                    AcknowledgedAt = a.AcknowledgedAt.HasValue
-                        ? Timestamp.FromDateTime(a.AcknowledgedAt.Value.ToUniversalTime())
-                        : null,
-                    CreatedAt = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime())
-                }));
-
-                return Task.FromResult(response);
+                response.Alerts.AddRange(dto.Alerts.Select(MapAlertToProto));
+                return response;
             },
-            error => throw error.ToRpcException()
-        );
+            error => error.ToRpcException());
     }
 
-    public override async Task<GetAlertHistoryResponse> GetAlertHistory(
-        GetAlertHistoryRequest request,
+    public override async Task<Workshop.Contracts.Monitoring.GetAlertHistoryResponse> GetAlertHistory(
+        Workshop.Contracts.Monitoring.GetAlertHistoryRequest request,
         ServerCallContext context)
     {
         _logger.LogDebug("GetAlertHistory called");
 
+        var pageNumber = request.Pagination?.Page ?? 0;
+        var pageSize = request.Pagination?.PageSize ?? 20;
+
         var query = new GetAlertHistoryQuery(
-            StartTime: request.StartTime?.ToDateTime(),
-            EndTime: request.EndTime?.ToDateTime(),
-            Status: request.Status != Workshop.Proto.Monitoring.AlertStatus.Unspecified
-                ? MapAlertStatusToDomain(request.Status)
-                : null,
-            MinimumSeverity: request.MinimumSeverity != Workshop.Proto.Common.Severity.Unspecified
-                ? MapSeverityToDomain(request.MinimumSeverity)
-                : null,
+            StartTime: request.TimeRange?.Start?.ToDateTime(),
+            EndTime: request.TimeRange?.End?.ToDateTime(),
+            Status: request.Status != AlertStatus.Unspecified ? MapAlertStatusToDomain(request.Status) : null,
+            MinimumSeverity: null,
             DeviceId: !string.IsNullOrWhiteSpace(request.DeviceId) ? request.DeviceId : null,
-            PageNumber: request.PageNumber > 0 ? request.PageNumber : 1,
-            PageSize: request.PageSize > 0 ? request.PageSize : 20);
+            PageNumber: pageNumber > 0 ? pageNumber : 1,
+            PageSize: pageSize > 0 ? pageSize : 20);
 
-        var result = await _mediator.Send(query, context.CancellationToken);
-
-        return await result.MatchAsync(
+        return await _mediator.Send(query, context.CancellationToken).MatchAsync(
             dto =>
             {
-                var response = new GetAlertHistoryResponse
+                var response = new Workshop.Contracts.Monitoring.GetAlertHistoryResponse
                 {
-                    TotalCount = dto.TotalCount,
-                    PageNumber = dto.PageNumber,
-                    PageSize = dto.PageSize,
-                    TotalPages = dto.TotalPages
+                    Pagination = new PaginationResponse
+                    {
+                        CurrentPage = dto.PageNumber, PageSize = dto.PageSize, TotalItems = dto.TotalCount,
+                        TotalPages = dto.TotalPages, HasNext = dto.PageNumber < dto.TotalPages, HasPrevious = dto.PageNumber > 1
+                    }
                 };
-
-                response.Alerts.AddRange(dto.Alerts.Select(a => new AlertInfo
-                {
-                    AlertId = a.Id,
-                    Title = a.Title,
-                    Message = a.Message,
-                    Severity = MapSeverity(a.Severity),
-                    Status = MapAlertStatus(a.Status),
-                    DeviceId = a.DeviceId ?? string.Empty,
-                    DeviceName = a.DeviceName ?? string.Empty,
-                    RuleId = a.RuleId ?? string.Empty,
-                    RuleName = a.RuleName ?? string.Empty,
-                    AcknowledgedBy = a.AcknowledgedBy ?? string.Empty,
-                    AcknowledgedAt = a.AcknowledgedAt.HasValue
-                        ? Timestamp.FromDateTime(a.AcknowledgedAt.Value.ToUniversalTime())
-                        : null,
-                    CreatedAt = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime())
-                }));
-
-                return Task.FromResult(response);
+                response.Alerts.AddRange(dto.Alerts.Select(MapAlertToProto));
+                return response;
             },
-            error => throw error.ToRpcException()
-        );
+            error => error.ToRpcException());
     }
 
-    public override async Task<GetAlertResponse> GetAlert(
-        GetAlertRequest request,
-        ServerCallContext context)
+    public override async Task<GetAlertResponse> GetAlert(GetAlertRequest request, ServerCallContext context)
     {
         _logger.LogDebug("GetAlert called for alert: {AlertId}", request.AlertId);
 
-        var query = new GetAlertQuery(request.AlertId);
-        var result = await _mediator.Send(query, context.CancellationToken);
-
-        return await result.MatchAsync(
-            a => Task.FromResult(new GetAlertResponse
-            {
-                AlertId = a.Id,
-                Title = a.Title,
-                Message = a.Message,
-                Severity = MapSeverity(a.Severity),
-                Status = MapAlertStatus(a.Status),
-                DeviceId = a.DeviceId ?? string.Empty,
-                DeviceName = a.DeviceName ?? string.Empty,
-                RuleId = a.RuleId ?? string.Empty,
-                RuleName = a.RuleName ?? string.Empty,
-                AcknowledgedBy = a.AcknowledgedBy ?? string.Empty,
-                AcknowledgedAt = a.AcknowledgedAt.HasValue
-                    ? Timestamp.FromDateTime(a.AcknowledgedAt.Value.ToUniversalTime())
-                    : null,
-                CreatedAt = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime()),
-                UpdatedAt = Timestamp.FromDateTime(a.UpdatedAt.ToUniversalTime())
-            }),
-            error => throw error.ToRpcException()
-        );
+        return await _mediator.Send(new GetAlertQuery(request.AlertId), context.CancellationToken).MatchAsync(
+            a => new GetAlertResponse { Alert = MapAlertToProto(a) },
+            error => error.ToRpcException());
     }
 
-    public override async Task<AcknowledgeAlertResponse> AcknowledgeAlert(
-        AcknowledgeAlertRequest request,
-        ServerCallContext context)
+    public override async Task<AcknowledgeAlertResponse> AcknowledgeAlert(AcknowledgeAlertRequest request, ServerCallContext context)
     {
         _logger.LogDebug("AcknowledgeAlert called for alert: {AlertId}", request.AlertId);
 
-        var command = new AcknowledgeAlertCommand(request.AlertId, request.AcknowledgedBy);
-        var result = await _mediator.Send(command, context.CancellationToken);
+        await _mediator.Send(new AcknowledgeAlertCommand(request.AlertId, request.AcknowledgedBy), context.CancellationToken).ThrowIfFailureAsync();
 
-        return await result.MatchAsync(
-            () => Task.FromResult(new AcknowledgeAlertResponse { Success = true }),
-            error => throw error.ToRpcException()
-        );
+        return new AcknowledgeAlertResponse { Success = true, Message = "Alert acknowledged successfully" };
     }
 
-    public override async Task<ListMonitoringRulesResponse> ListMonitoringRules(
-        ListMonitoringRulesRequest request,
+    public override async Task<Workshop.Contracts.Monitoring.ListMonitoringRulesResponse> ListMonitoringRules(
+        Workshop.Contracts.Monitoring.ListMonitoringRulesRequest request,
         ServerCallContext context)
     {
         _logger.LogDebug("ListMonitoringRules called");
 
+        var pageNumber = request.Pagination?.Page ?? 0;
+        var pageSize = request.Pagination?.PageSize ?? 20;
+
         var query = new ListMonitoringRulesQuery(
-            IsEnabled: request.HasIsEnabled ? request.IsEnabled : null,
-            PageNumber: request.PageNumber > 0 ? request.PageNumber : 1,
-            PageSize: request.PageSize > 0 ? request.PageSize : 20);
+            IsEnabled: request.HasEnabled ? request.Enabled : null,
+            PageNumber: pageNumber > 0 ? pageNumber : 1,
+            PageSize: pageSize > 0 ? pageSize : 20);
 
-        var result = await _mediator.Send(query, context.CancellationToken);
-
-        return await result.MatchAsync(
+        return await _mediator.Send(query, context.CancellationToken).MatchAsync(
             dto =>
             {
-                var response = new ListMonitoringRulesResponse
+                var response = new Workshop.Contracts.Monitoring.ListMonitoringRulesResponse
                 {
-                    TotalCount = dto.TotalCount,
-                    PageNumber = dto.PageNumber,
-                    PageSize = dto.PageSize,
-                    TotalPages = dto.TotalPages
+                    Pagination = new PaginationResponse
+                    {
+                        CurrentPage = dto.PageNumber, PageSize = dto.PageSize, TotalItems = dto.TotalCount,
+                        TotalPages = dto.TotalPages, HasNext = dto.PageNumber < dto.TotalPages, HasPrevious = dto.PageNumber > 1
+                    }
                 };
-
-                response.Rules.AddRange(dto.Rules.Select(r => new MonitoringRuleInfo
-                {
-                    RuleId = r.Id,
-                    Name = r.Name,
-                    Description = r.Description,
-                    IsEnabled = r.IsEnabled,
-                    ConditionType = MapRuleConditionType(r.ConditionType),
-                    ConditionValue = r.ConditionValue,
-                    ActionType = MapRuleActionType(r.ActionType),
-                    AlertSeverity = MapSeverity(r.AlertSeverity),
-                    DeviceIdFilter = r.DeviceIdFilter ?? string.Empty,
-                    DeviceTypeFilter = r.DeviceTypeFilter ?? string.Empty,
-                    LastTriggeredAt = r.LastTriggeredAt.HasValue
-                        ? Timestamp.FromDateTime(r.LastTriggeredAt.Value.ToUniversalTime())
-                        : null,
-                    TriggerCount = r.TriggerCount
-                }));
-
-                return Task.FromResult(response);
+                response.Rules.AddRange(dto.Rules.Select(MapRuleToProto));
+                return response;
             },
-            error => throw error.ToRpcException()
-        );
+            error => error.ToRpcException());
     }
 
-    public override async Task<CreateMonitoringRuleResponse> CreateMonitoringRule(
-        CreateMonitoringRuleRequest request,
-        ServerCallContext context)
+    public override async Task<CreateMonitoringRuleResponse> CreateMonitoringRule(CreateMonitoringRuleRequest request, ServerCallContext context)
     {
-        _logger.LogDebug("CreateMonitoringRule called: {RuleName}", request.Name);
+        _logger.LogDebug("CreateMonitoringRule called: {RuleName}", request.RuleName);
+
+        var conditionValue = request.Configuration.TryGetValue("condition_value", out var cv) ? cv : string.Empty;
+        var deviceIdFilter = request.Configuration.TryGetValue("device_id_filter", out var didf) ? didf : null;
+        var deviceTypeFilter = request.Configuration.TryGetValue("device_type_filter", out var dtf) ? dtf : null;
+        var actionType = request.Actions.Count > 0 ? MapRuleActionTypeToDomain(request.Actions[0]) : Domain.Enums.RuleActionType.CreateAlert;
 
         var command = new CreateMonitoringRuleCommand(
-            request.Name,
-            request.Description,
-            MapRuleConditionTypeToDomain(request.ConditionType),
-            request.ConditionValue,
-            MapRuleActionTypeToDomain(request.ActionType),
-            MapSeverityToDomain(request.AlertSeverity),
-            !string.IsNullOrWhiteSpace(request.DeviceIdFilter) ? request.DeviceIdFilter : null,
-            !string.IsNullOrWhiteSpace(request.DeviceTypeFilter) ? request.DeviceTypeFilter : null);
+            request.RuleName, request.Description, MapRuleConditionTypeToDomain(request.ConditionType),
+            conditionValue, actionType, MapSeverityToDomain(request.Severity), deviceIdFilter, deviceTypeFilter);
 
-        var result = await _mediator.Send(command, context.CancellationToken);
-
-        return await result.MatchAsync(
-            ruleId => Task.FromResult(new CreateMonitoringRuleResponse
+        return await _mediator.Send(command, context.CancellationToken).MatchAsync(
+            ruleId => new CreateMonitoringRuleResponse
             {
-                RuleId = ruleId,
-                Success = true
-            }),
-            error => throw error.ToRpcException()
-        );
+                Success = true,
+                Message = "Rule created successfully",
+                Rule = new MonitoringRuleInfo { RuleId = ruleId, RuleName = request.RuleName, Description = request.Description, ConditionType = request.ConditionType, Severity = request.Severity, Enabled = request.Enabled }
+            },
+            error => error.ToRpcException());
     }
 
-    public override async Task<UpdateMonitoringRuleResponse> UpdateMonitoringRule(
-        UpdateMonitoringRuleRequest request,
-        ServerCallContext context)
+    public override async Task<UpdateMonitoringRuleResponse> UpdateMonitoringRule(UpdateMonitoringRuleRequest request, ServerCallContext context)
     {
         _logger.LogDebug("UpdateMonitoringRule called for rule: {RuleId}", request.RuleId);
 
+        var conditionValue = request.Configuration.TryGetValue("condition_value", out var cv) ? cv : null;
+        var deviceIdFilter = request.Configuration.TryGetValue("device_id_filter", out var didf) ? didf : null;
+        var deviceTypeFilter = request.Configuration.TryGetValue("device_type_filter", out var dtf) ? dtf : null;
+        Domain.Enums.RuleActionType? actionType = request.Actions.Count > 0 ? MapRuleActionTypeToDomain(request.Actions[0]) : null;
+
         var command = new UpdateMonitoringRuleCommand(
             request.RuleId,
-            !string.IsNullOrWhiteSpace(request.Name) ? request.Name : null,
-            !string.IsNullOrWhiteSpace(request.Description) ? request.Description : null,
-            request.ConditionType != Workshop.Proto.Monitoring.RuleConditionType.Unspecified
-                ? MapRuleConditionTypeToDomain(request.ConditionType)
-                : null,
-            !string.IsNullOrWhiteSpace(request.ConditionValue) ? request.ConditionValue : null,
-            request.ActionType != Workshop.Proto.Monitoring.RuleActionType.Unspecified
-                ? MapRuleActionTypeToDomain(request.ActionType)
-                : null,
-            request.AlertSeverity != Workshop.Proto.Common.Severity.Unspecified
-                ? MapSeverityToDomain(request.AlertSeverity)
-                : null,
-            request.HasDeviceIdFilter ? request.DeviceIdFilter : null,
-            request.HasDeviceTypeFilter ? request.DeviceTypeFilter : null,
-            request.HasIsEnabled ? request.IsEnabled : null);
+            request.HasRuleName ? request.RuleName : null,
+            request.HasDescription ? request.Description : null,
+            null, conditionValue, actionType,
+            request.HasSeverity ? MapSeverityToDomain(request.Severity) : null,
+            deviceIdFilter, deviceTypeFilter,
+            request.HasEnabled ? request.Enabled : null);
 
-        var result = await _mediator.Send(command, context.CancellationToken);
+        await _mediator.Send(command, context.CancellationToken).ThrowIfFailureAsync();
 
-        return await result.MatchAsync(
-            () => Task.FromResult(new UpdateMonitoringRuleResponse { Success = true }),
-            error => throw error.ToRpcException()
-        );
+        return new UpdateMonitoringRuleResponse { Success = true, Message = "Rule updated successfully" };
     }
 
-    public override async Task<DeleteMonitoringRuleResponse> DeleteMonitoringRule(
-        DeleteMonitoringRuleRequest request,
-        ServerCallContext context)
+    public override async Task<DeleteMonitoringRuleResponse> DeleteMonitoringRule(DeleteMonitoringRuleRequest request, ServerCallContext context)
     {
         _logger.LogDebug("DeleteMonitoringRule called for rule: {RuleId}", request.RuleId);
 
-        var command = new DeleteMonitoringRuleCommand(request.RuleId);
-        var result = await _mediator.Send(command, context.CancellationToken);
+        await _mediator.Send(new DeleteMonitoringRuleCommand(request.RuleId), context.CancellationToken).ThrowIfFailureAsync();
 
-        return await result.MatchAsync(
-            () => Task.FromResult(new DeleteMonitoringRuleResponse { Success = true }),
-            error => throw error.ToRpcException()
-        );
+        return new DeleteMonitoringRuleResponse { Success = true, Message = "Rule deleted successfully" };
     }
 
-    // Helper methods to map between proto and domain enums
-
-    private static Workshop.Proto.Common.Severity MapSeverity(Domain.Enums.Severity severity)
+    private AlertInfo MapAlertToProto(Application.Features.Alerts.Queries.GetActiveAlerts.AlertDto a)
     {
-        return severity switch
+        var alertInfo = new AlertInfo
         {
-            Domain.Enums.Severity.Info => Workshop.Proto.Common.Severity.Info,
-            Domain.Enums.Severity.Warning => Workshop.Proto.Common.Severity.Warning,
-            Domain.Enums.Severity.Error => Workshop.Proto.Common.Severity.Error,
-            Domain.Enums.Severity.Critical => Workshop.Proto.Common.Severity.Critical,
-            _ => Workshop.Proto.Common.Severity.Unspecified
+            AlertId = a.Id, Title = a.Title, Description = a.Message, Severity = MapSeverity(a.Severity),
+            Status = MapAlertStatus(a.Status), DeviceId = a.DeviceId ?? string.Empty, DeviceName = a.DeviceName ?? string.Empty,
+            RuleId = a.RuleId ?? string.Empty, RuleName = a.RuleName ?? string.Empty,
+            TriggeredAt = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime())
         };
+        if (!string.IsNullOrEmpty(a.AcknowledgedBy)) alertInfo.AcknowledgedBy = a.AcknowledgedBy;
+        if (a.AcknowledgedAt.HasValue) alertInfo.AcknowledgedAt = Timestamp.FromDateTime(a.AcknowledgedAt.Value.ToUniversalTime());
+        return alertInfo;
     }
 
-    private static Domain.Enums.Severity MapSeverityToDomain(Workshop.Proto.Common.Severity severity)
+    private MonitoringRuleInfo MapRuleToProto(Application.Features.Rules.Queries.ListMonitoringRules.MonitoringRuleDto r)
     {
-        return severity switch
+        var ruleInfo = new MonitoringRuleInfo
         {
-            Workshop.Proto.Common.Severity.Info => Domain.Enums.Severity.Info,
-            Workshop.Proto.Common.Severity.Warning => Domain.Enums.Severity.Warning,
-            Workshop.Proto.Common.Severity.Error => Domain.Enums.Severity.Error,
-            Workshop.Proto.Common.Severity.Critical => Domain.Enums.Severity.Critical,
-            _ => Domain.Enums.Severity.Info
+            RuleId = r.Id, RuleName = r.Name, Description = r.Description, Enabled = r.IsEnabled,
+            ConditionType = MapRuleConditionType(r.ConditionType), Severity = MapSeverity(r.AlertSeverity),
+            TimesTriggered = r.TriggerCount, CreatedAt = Timestamp.FromDateTime(DateTime.UtcNow), UpdatedAt = Timestamp.FromDateTime(DateTime.UtcNow)
         };
+        ruleInfo.Configuration.Add("condition_value", r.ConditionValue);
+        if (!string.IsNullOrEmpty(r.DeviceIdFilter)) ruleInfo.Configuration.Add("device_id_filter", r.DeviceIdFilter);
+        if (!string.IsNullOrEmpty(r.DeviceTypeFilter)) ruleInfo.Configuration.Add("device_type_filter", r.DeviceTypeFilter);
+        ruleInfo.Actions.Add(MapRuleActionType(r.ActionType));
+        if (r.LastTriggeredAt.HasValue) ruleInfo.LastTriggered = Timestamp.FromDateTime(r.LastTriggeredAt.Value.ToUniversalTime());
+        return ruleInfo;
     }
 
-    private static Workshop.Proto.Monitoring.AlertStatus MapAlertStatus(Domain.Enums.AlertStatus status)
+    private static Severity MapSeverity(Domain.Enums.Severity s) => s switch
     {
-        return status switch
-        {
-            Domain.Enums.AlertStatus.Active => Workshop.Proto.Monitoring.AlertStatus.Active,
-            Domain.Enums.AlertStatus.Acknowledged => Workshop.Proto.Monitoring.AlertStatus.Acknowledged,
-            Domain.Enums.AlertStatus.Resolved => Workshop.Proto.Monitoring.AlertStatus.Resolved,
-            _ => Workshop.Proto.Monitoring.AlertStatus.Unspecified
-        };
-    }
+        Domain.Enums.Severity.Info => Severity.Info, Domain.Enums.Severity.Warning => Severity.Warning,
+        Domain.Enums.Severity.Error => Severity.Error, Domain.Enums.Severity.Critical => Severity.Critical, _ => Severity.Unspecified
+    };
 
-    private static Domain.Enums.AlertStatus MapAlertStatusToDomain(Workshop.Proto.Monitoring.AlertStatus status)
+    private static Domain.Enums.Severity MapSeverityToDomain(Severity s) => s switch
     {
-        return status switch
-        {
-            Workshop.Proto.Monitoring.AlertStatus.Active => Domain.Enums.AlertStatus.Active,
-            Workshop.Proto.Monitoring.AlertStatus.Acknowledged => Domain.Enums.AlertStatus.Acknowledged,
-            Workshop.Proto.Monitoring.AlertStatus.Resolved => Domain.Enums.AlertStatus.Resolved,
-            _ => Domain.Enums.AlertStatus.Active
-        };
-    }
+        Severity.Info => Domain.Enums.Severity.Info, Severity.Warning => Domain.Enums.Severity.Warning,
+        Severity.Error => Domain.Enums.Severity.Error, Severity.Critical => Domain.Enums.Severity.Critical, _ => Domain.Enums.Severity.Info
+    };
 
-    private static Workshop.Proto.Monitoring.RuleConditionType MapRuleConditionType(Domain.Enums.RuleConditionType type)
+    private static AlertStatus MapAlertStatus(Domain.Enums.AlertStatus s) => s switch
     {
-        return type switch
-        {
-            Domain.Enums.RuleConditionType.DeviceStatusEquals => Workshop.Proto.Monitoring.RuleConditionType.DeviceStatusEquals,
-            Domain.Enums.RuleConditionType.DeviceOfflineForDuration => Workshop.Proto.Monitoring.RuleConditionType.DeviceOfflineForDuration,
-            Domain.Enums.RuleConditionType.DeviceEventTypeMatches => Workshop.Proto.Monitoring.RuleConditionType.DeviceEventTypeMatches,
-            Domain.Enums.RuleConditionType.CustomExpression => Workshop.Proto.Monitoring.RuleConditionType.CustomExpression,
-            _ => Workshop.Proto.Monitoring.RuleConditionType.Unspecified
-        };
-    }
+        Domain.Enums.AlertStatus.Active => AlertStatus.Active, Domain.Enums.AlertStatus.Acknowledged => AlertStatus.Acknowledged,
+        Domain.Enums.AlertStatus.Resolved => AlertStatus.Resolved, _ => AlertStatus.Unspecified
+    };
 
-    private static Domain.Enums.RuleConditionType MapRuleConditionTypeToDomain(Workshop.Proto.Monitoring.RuleConditionType type)
+    private static Domain.Enums.AlertStatus MapAlertStatusToDomain(AlertStatus s) => s switch
     {
-        return type switch
-        {
-            Workshop.Proto.Monitoring.RuleConditionType.DeviceStatusEquals => Domain.Enums.RuleConditionType.DeviceStatusEquals,
-            Workshop.Proto.Monitoring.RuleConditionType.DeviceOfflineForDuration => Domain.Enums.RuleConditionType.DeviceOfflineForDuration,
-            Workshop.Proto.Monitoring.RuleConditionType.DeviceEventTypeMatches => Domain.Enums.RuleConditionType.DeviceEventTypeMatches,
-            Workshop.Proto.Monitoring.RuleConditionType.CustomExpression => Domain.Enums.RuleConditionType.CustomExpression,
-            _ => Domain.Enums.RuleConditionType.DeviceStatusEquals
-        };
-    }
+        AlertStatus.Active => Domain.Enums.AlertStatus.Active, AlertStatus.Acknowledged => Domain.Enums.AlertStatus.Acknowledged,
+        AlertStatus.Resolved => Domain.Enums.AlertStatus.Resolved, AlertStatus.AutoResolved => Domain.Enums.AlertStatus.Resolved, _ => Domain.Enums.AlertStatus.Active
+    };
 
-    private static Workshop.Proto.Monitoring.RuleActionType MapRuleActionType(Domain.Enums.RuleActionType type)
+    private static RuleConditionType MapRuleConditionType(Domain.Enums.RuleConditionType t) => t switch
     {
-        return type switch
-        {
-            Domain.Enums.RuleActionType.CreateAlert => Workshop.Proto.Monitoring.RuleActionType.CreateAlert,
-            Domain.Enums.RuleActionType.SendNotification => Workshop.Proto.Monitoring.RuleActionType.SendNotification,
-            Domain.Enums.RuleActionType.ExecuteCustomAction => Workshop.Proto.Monitoring.RuleActionType.ExecuteCustomAction,
-            _ => Workshop.Proto.Monitoring.RuleActionType.Unspecified
-        };
-    }
+        Domain.Enums.RuleConditionType.DeviceStatusEquals => RuleConditionType.StatusEquals, Domain.Enums.RuleConditionType.DeviceOfflineForDuration => RuleConditionType.OfflineDuration,
+        Domain.Enums.RuleConditionType.DeviceEventTypeMatches => RuleConditionType.EventOccurred, Domain.Enums.RuleConditionType.CustomExpression => RuleConditionType.StatusChanged, _ => RuleConditionType.Unspecified
+    };
 
-    private static Domain.Enums.RuleActionType MapRuleActionTypeToDomain(Workshop.Proto.Monitoring.RuleActionType type)
+    private static Domain.Enums.RuleConditionType MapRuleConditionTypeToDomain(RuleConditionType t) => t switch
     {
-        return type switch
-        {
-            Workshop.Proto.Monitoring.RuleActionType.CreateAlert => Domain.Enums.RuleActionType.CreateAlert,
-            Workshop.Proto.Monitoring.RuleActionType.SendNotification => Domain.Enums.RuleActionType.SendNotification,
-            Workshop.Proto.Monitoring.RuleActionType.ExecuteCustomAction => Domain.Enums.RuleActionType.ExecuteCustomAction,
-            _ => Domain.Enums.RuleActionType.CreateAlert
-        };
-    }
+        RuleConditionType.StatusEquals => Domain.Enums.RuleConditionType.DeviceStatusEquals, RuleConditionType.StatusChanged => Domain.Enums.RuleConditionType.CustomExpression,
+        RuleConditionType.OfflineDuration => Domain.Enums.RuleConditionType.DeviceOfflineForDuration, RuleConditionType.EventOccurred => Domain.Enums.RuleConditionType.DeviceEventTypeMatches,
+        RuleConditionType.HeartbeatMissed => Domain.Enums.RuleConditionType.DeviceOfflineForDuration, _ => Domain.Enums.RuleConditionType.DeviceStatusEquals
+    };
+
+    private static RuleActionType MapRuleActionType(Domain.Enums.RuleActionType t) => t switch
+    {
+        Domain.Enums.RuleActionType.CreateAlert => RuleActionType.CreateAlert, Domain.Enums.RuleActionType.SendNotification => RuleActionType.SendNotification,
+        Domain.Enums.RuleActionType.ExecuteCustomAction => RuleActionType.CallDeviceService, _ => RuleActionType.Unspecified
+    };
+
+    private static Domain.Enums.RuleActionType MapRuleActionTypeToDomain(RuleActionType t) => t switch
+    {
+        RuleActionType.CreateAlert => Domain.Enums.RuleActionType.CreateAlert, RuleActionType.SendNotification => Domain.Enums.RuleActionType.SendNotification,
+        RuleActionType.CallDeviceService => Domain.Enums.RuleActionType.ExecuteCustomAction, RuleActionType.Escalate => Domain.Enums.RuleActionType.CreateAlert, _ => Domain.Enums.RuleActionType.CreateAlert
+    };
 }

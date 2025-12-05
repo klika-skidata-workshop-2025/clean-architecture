@@ -113,7 +113,7 @@ services:
   device-service:
     build:
       context: .
-      dockerfile: src/Services/DeviceService/DeviceService.App/Dockerfile
+      dockerfile: src/Services/DeviceService/Dockerfile
     container_name: workshop-device-service
     hostname: device-service
     ports:
@@ -142,7 +142,7 @@ services:
   monitoring-service:
     build:
       context: .
-      dockerfile: src/Services/MonitoringService/MonitoringService.App/Dockerfile
+      dockerfile: src/Services/MonitoringService/Dockerfile
     container_name: workshop-monitoring-service
     hostname: monitoring-service
     ports:
@@ -174,7 +174,7 @@ services:
   diagnostics-service:
     build:
       context: .
-      dockerfile: src/Services/DiagnosticsService/DiagnosticsService.App/Dockerfile
+      dockerfile: src/Services/DiagnosticsService/Dockerfile
     container_name: workshop-diagnostics-service
     hostname: diagnostics-service
     ports:

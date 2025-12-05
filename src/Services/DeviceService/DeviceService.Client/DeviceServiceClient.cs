@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
-using Workshop.Proto.Device;
+using Workshop.Contracts.Device;
+using Workshop.Contracts.Common;
 
 namespace DeviceService.Client;
 
@@ -10,14 +11,14 @@ namespace DeviceService.Client;
 /// </summary>
 public class DeviceServiceClient
 {
-    private readonly Workshop.Proto.Device.DeviceService.DeviceServiceClient _client;
+    private readonly Workshop.Contracts.Device.DeviceService.DeviceServiceClient _client;
     private readonly ILogger<DeviceServiceClient> _logger;
 
     /// <summary>
     /// Initializes a new instance of DeviceServiceClient.
     /// </summary>
     public DeviceServiceClient(
-        Workshop.Proto.Device.DeviceService.DeviceServiceClient client,
+        Workshop.Contracts.Device.DeviceService.DeviceServiceClient client,
         ILogger<DeviceServiceClient> logger)
     {
         _client = client;
@@ -68,15 +69,18 @@ public class DeviceServiceClient
             var request = new ListDevicesRequest
             {
                 Status = status ?? DeviceStatus.Unspecified,
-                Type = type ?? DeviceType.Unspecified,
+                DeviceType = type ?? DeviceType.Unspecified,
                 Location = location ?? string.Empty,
-                PageNumber = pageNumber,
-                PageSize = pageSize
+                Pagination = new PaginationRequest
+                {
+                    Page = pageNumber,
+                    PageSize = pageSize
+                }
             };
 
             var response = await _client.ListDevicesAsync(request, cancellationToken: cancellationToken);
 
-            _logger.LogDebug("Found {Count} devices", response.TotalCount);
+            _logger.LogDebug("Found {Count} devices", response.Pagination?.TotalItems ?? 0);
             return response;
         }
         catch (RpcException ex)
@@ -104,16 +108,19 @@ public class DeviceServiceClient
 
             var request = new RegisterDeviceRequest
             {
-                Name = name,
-                Type = type,
-                Location = location,
-                IpAddress = ipAddress,
-                FirmwareVersion = firmwareVersion
+                DeviceId = Guid.NewGuid().ToString(),
+                DeviceName = name,
+                DeviceType = type,
+                Location = location
             };
+
+            // Store additional info in metadata
+            request.Metadata.Add("ip_address", ipAddress ?? string.Empty);
+            request.Metadata.Add("firmware_version", firmwareVersion ?? string.Empty);
 
             var response = await _client.RegisterDeviceAsync(request, cancellationToken: cancellationToken);
 
-            _logger.LogInformation("Device registered: {DeviceId}", response.DeviceId);
+            _logger.LogInformation("Device registered: {DeviceId}", response.Device?.DeviceId);
             return response;
         }
         catch (RpcException ex)
@@ -142,11 +149,21 @@ public class DeviceServiceClient
             var request = new UpdateDeviceRequest
             {
                 DeviceId = deviceId,
-                Status = status ?? DeviceStatus.Unspecified,
-                Name = name ?? string.Empty,
-                Location = location ?? string.Empty,
-                FirmwareVersion = firmwareVersion ?? string.Empty
+                Reason = "Updated via client"
             };
+
+            if (status.HasValue)
+                request.Status = status.Value;
+
+            if (!string.IsNullOrEmpty(location))
+                request.Location = location;
+
+            // Store name and firmware in metadata
+            if (!string.IsNullOrEmpty(name))
+                request.Metadata.Add("name", name);
+
+            if (!string.IsNullOrEmpty(firmwareVersion))
+                request.Metadata.Add("firmware_version", firmwareVersion);
 
             var response = await _client.UpdateDeviceAsync(request, cancellationToken: cancellationToken);
 
@@ -177,9 +194,22 @@ public class DeviceServiceClient
             var request = new SimulateDeviceEventRequest
             {
                 DeviceId = deviceId,
-                EventType = eventType,
-                EventData = eventData
+                EventType = eventType
             };
+
+            // Parse event data as key=value pairs
+            if (!string.IsNullOrEmpty(eventData))
+            {
+                var pairs = eventData.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var pair in pairs)
+                {
+                    var kv = pair.Split('=', 2);
+                    if (kv.Length == 2)
+                    {
+                        request.EventData.Add(kv[0], kv[1]);
+                    }
+                }
+            }
 
             var response = await _client.SimulateDeviceEventAsync(request, cancellationToken: cancellationToken);
 
@@ -212,11 +242,14 @@ public class DeviceServiceClient
                 DeviceId = deviceId
             };
 
-            if (startTime.HasValue)
-                request.StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(startTime.Value.ToUniversalTime());
-
-            if (endTime.HasValue)
-                request.EndTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(endTime.Value.ToUniversalTime());
+            if (startTime.HasValue || endTime.HasValue)
+            {
+                request.TimeRange = new TimeRange();
+                if (startTime.HasValue)
+                    request.TimeRange.Start = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(startTime.Value.ToUniversalTime());
+                if (endTime.HasValue)
+                    request.TimeRange.End = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(endTime.Value.ToUniversalTime());
+            }
 
             var response = await _client.GetDeviceHeartbeatsAsync(request, cancellationToken: cancellationToken);
 

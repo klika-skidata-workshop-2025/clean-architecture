@@ -15,10 +15,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" />
     <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" />
+    <PackageReference Include="Grpc.AspNetCore.HealthChecks" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MonitoringService.API\MonitoringService.API.csproj" />
     <ProjectReference Include="..\MonitoringService.Application\MonitoringService.Application.csproj" />
     <ProjectReference Include="..\MonitoringService.Infrastructure\MonitoringService.Infrastructure.csproj" />
   </ItemGroup>

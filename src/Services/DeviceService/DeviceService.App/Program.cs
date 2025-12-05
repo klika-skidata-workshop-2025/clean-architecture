@@ -15,31 +15,43 @@ try
     Console.WriteLine("Starting DeviceService...");
     Console.WriteLine();
 
-    // Start the service
-    await host.StartAsync();
+    // Check if running in interactive mode
+    bool isInteractive = Environment.UserInteractive && !Console.IsInputRedirected;
 
-    Console.WriteLine("DeviceService started successfully!");
-    Console.WriteLine($"Listening on: {string.Join(", ", host.Urls)}");
-    Console.WriteLine();
-    Console.WriteLine("Device Management Features:");
-    Console.WriteLine("  - Register new devices (gates, lifts, counters, controls)");
-    Console.WriteLine("  - Update device status and information");
-    Console.WriteLine("  - Monitor device heartbeats");
-    Console.WriteLine("  - Simulate device events");
-    Console.WriteLine();
-    Console.WriteLine("Press ENTER to stop the service...");
-    Console.WriteLine();
+    if (isInteractive)
+    {
+        // Start the service
+        await host.StartAsync();
 
-    // Wait for user to press ENTER
-    Console.ReadLine();
+        Console.WriteLine("DeviceService started successfully!");
+        Console.WriteLine($"Listening on: {string.Join(", ", host.Urls)}");
+        Console.WriteLine();
+        Console.WriteLine("Device Management Features:");
+        Console.WriteLine("  - Register new devices (gates, lifts, counters, controls)");
+        Console.WriteLine("  - Update device status and information");
+        Console.WriteLine("  - Monitor device heartbeats");
+        Console.WriteLine("  - Simulate device events");
+        Console.WriteLine();
+        Console.WriteLine("Press ENTER to stop the service...");
+        Console.WriteLine();
 
-    Console.WriteLine();
-    Console.WriteLine("Stopping DeviceService...");
+        // Wait for user to press ENTER
+        Console.ReadLine();
 
-    // Stop the service gracefully
-    await host.StopAsync();
+        Console.WriteLine();
+        Console.WriteLine("Stopping DeviceService...");
 
-    Console.WriteLine("DeviceService stopped.");
+        // Stop the service gracefully
+        await host.StopAsync();
+
+        Console.WriteLine("DeviceService stopped.");
+    }
+    else
+    {
+        // Non-interactive mode - run until cancelled
+        Console.WriteLine("Running in non-interactive mode...");
+        await host.RunAsync();
+    }
 }
 catch (Exception ex)
 {

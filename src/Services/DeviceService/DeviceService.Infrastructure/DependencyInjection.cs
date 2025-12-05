@@ -60,7 +60,16 @@ public static class DependencyInjection
         using var scope = services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // Apply pending migrations
-        await context.Database.MigrateAsync();
+        // Apply pending migrations if any, otherwise create the schema
+        var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+        if (pendingMigrations.Any())
+        {
+            await context.Database.MigrateAsync();
+        }
+        else
+        {
+            // No migrations - create schema from model (development mode)
+            await context.Database.EnsureCreatedAsync();
+        }
     }
 }

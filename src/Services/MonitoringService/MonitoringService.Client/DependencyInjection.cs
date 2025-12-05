@@ -12,7 +12,7 @@ public static class DependencyInjection
         this IServiceCollection services,
         string serviceUrl)
     {
-        services.AddGrpcClient<Workshop.Proto.Monitoring.MonitoringService.MonitoringServiceClient>(options =>
+        services.AddGrpcClient<Workshop.Contracts.Monitoring.MonitoringService.MonitoringServiceClient>(options =>
         {
             options.Address = new Uri(serviceUrl);
         })
@@ -33,7 +33,7 @@ public static class DependencyInjection
         string serviceUrl,
         Action<GrpcClientFactoryOptions> configureClient)
     {
-        services.AddGrpcClient<Workshop.Proto.Monitoring.MonitoringService.MonitoringServiceClient>(options =>
+        services.AddGrpcClient<Workshop.Contracts.Monitoring.MonitoringService.MonitoringServiceClient>(options =>
         {
             options.Address = new Uri(serviceUrl);
             configureClient(options);

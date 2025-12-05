@@ -33,7 +33,7 @@
     <PackageReference Include="Workshop.Messaging" Version="1.0.0" Condition="'$(UseWorkshopNuGet)' == 'true'" />
 
     <!-- For development without NuGet -->
-    <ProjectReference Include="..\..\..\..\Shared\Workshop.Messaging\Workshop.Messaging.csproj" Condition="'$(UseWorkshopNuGet)' != 'true'" />
+    <ProjectReference Include="..\..\..\Shared\Workshop.Messaging\Workshop.Messaging.csproj" Condition="'$(UseWorkshopNuGet)' != 'true'" />
   </ItemGroup>
 
 </Project>

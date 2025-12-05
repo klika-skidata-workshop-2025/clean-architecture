@@ -8,7 +8,9 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using MediatR;
 using Workshop.Common.Extensions;
-using Workshop.Proto.Device;
+using Workshop.Contracts.Device;
+using Workshop.Contracts.Common;
+using GrpcDeviceService = Workshop.Contracts.Device.DeviceService;
 
 namespace DeviceService.API.Services;
 
@@ -16,7 +18,7 @@ namespace DeviceService.API.Services;
 /// gRPC service implementation for Device Service.
 /// Maps proto definitions to CQRS commands and queries.
 /// </summary>
-public class DeviceGrpcService : DeviceService.DeviceServiceBase
+public class DeviceGrpcService : GrpcDeviceService.DeviceServiceBase
 {
     private readonly IMediator _mediator;
     private readonly ILogger<DeviceGrpcService> _logger;
@@ -34,78 +36,101 @@ public class DeviceGrpcService : DeviceService.DeviceServiceBase
         _logger.LogDebug("GetDeviceStatus called for device: {DeviceId}", request.DeviceId);
 
         var query = new GetDeviceStatusQuery(request.DeviceId);
-        var result = await _mediator.Send(query, context.CancellationToken);
 
-        return await result.MatchAsync(
-            dto => Task.FromResult(new GetDeviceStatusResponse
+        return await _mediator.Send(query, context.CancellationToken).MatchAsync(
+            dto =>
             {
-                DeviceId = dto.Id,
-                Name = dto.Name,
-                Type = MapDeviceType(dto.Type),
-                Status = MapDeviceStatus(dto.Status),
-                Location = dto.Location,
-                LastHeartbeat = dto.LastHeartbeat.HasValue
-                    ? Timestamp.FromDateTime(dto.LastHeartbeat.Value.ToUniversalTime())
-                    : null,
-                IsOnline = dto.IsOnline,
-                FirmwareVersion = dto.FirmwareVersion,
-                IpAddress = dto.IpAddress,
-                CreatedAt = Timestamp.FromDateTime(dto.CreatedAt.ToUniversalTime()),
-                UpdatedAt = Timestamp.FromDateTime(dto.UpdatedAt.ToUniversalTime())
-            }),
-            error => throw error.ToRpcException()
+                var response = new GetDeviceStatusResponse
+                {
+                    DeviceId = dto.Id,
+                    DeviceName = dto.Name,
+                    DeviceType = MapDeviceType(dto.Type),
+                    Status = MapDeviceStatus(dto.Status),
+                    Location = dto.Location ?? string.Empty,
+                    LastUpdated = Timestamp.FromDateTime(dto.UpdatedAt.ToUniversalTime())
+                };
+
+                if (dto.LastHeartbeat.HasValue)
+                {
+                    response.LastHeartbeat = Timestamp.FromDateTime(dto.LastHeartbeat.Value.ToUniversalTime());
+                }
+
+                response.Metadata.Add("firmware_version", dto.FirmwareVersion ?? string.Empty);
+                response.Metadata.Add("ip_address", dto.IpAddress ?? string.Empty);
+                response.Metadata.Add("is_online", dto.IsOnline.ToString().ToLower());
+                response.Metadata.Add("created_at", dto.CreatedAt.ToString("O"));
+
+                return response;
+            },
+            error => error.ToRpcException()
         );
     }
 
-    public override async Task<ListDevicesResponse> ListDevices(
+    public override async Task<Workshop.Contracts.Device.ListDevicesResponse> ListDevices(
         ListDevicesRequest request,
         ServerCallContext context)
     {
         _logger.LogDebug("ListDevices called with filters - Status: {Status}, Type: {Type}",
-            request.Status, request.Type);
+            request.Status, request.DeviceType);
+
+        var pageNumber = request.Pagination?.Page ?? 0;
+        var pageSize = request.Pagination?.PageSize ?? 20;
 
         var query = new ListDevicesQuery(
-            Status: request.Status != Workshop.Proto.Device.DeviceStatus.Unspecified
+            Status: request.Status != Workshop.Contracts.Device.DeviceStatus.Unspecified
                 ? MapDeviceStatusToDomain(request.Status)
                 : null,
-            Type: request.Type != Workshop.Proto.Device.DeviceType.Unspecified
-                ? MapDeviceTypeToDomain(request.Type)
+            Type: request.DeviceType != Workshop.Contracts.Device.DeviceType.Unspecified
+                ? MapDeviceTypeToDomain(request.DeviceType)
                 : null,
             Location: !string.IsNullOrWhiteSpace(request.Location) ? request.Location : null,
-            PageNumber: request.PageNumber > 0 ? request.PageNumber : 1,
-            PageSize: request.PageSize > 0 ? request.PageSize : 20);
+            PageNumber: pageNumber > 0 ? pageNumber : 1,
+            PageSize: pageSize > 0 ? pageSize : 20);
 
-        var result = await _mediator.Send(query, context.CancellationToken);
-
-        return await result.MatchAsync(
+        return await _mediator.Send(query, context.CancellationToken).MatchAsync(
             dto =>
             {
-                var response = new ListDevicesResponse
+                var response = new Workshop.Contracts.Device.ListDevicesResponse
                 {
-                    TotalCount = dto.TotalCount,
-                    PageNumber = dto.PageNumber,
-                    PageSize = dto.PageSize,
-                    TotalPages = dto.TotalPages
+                    Pagination = new PaginationResponse
+                    {
+                        CurrentPage = dto.PageNumber,
+                        PageSize = dto.PageSize,
+                        TotalItems = dto.TotalCount,
+                        TotalPages = dto.TotalPages,
+                        HasNext = dto.PageNumber < dto.TotalPages,
+                        HasPrevious = dto.PageNumber > 1
+                    }
                 };
 
-                response.Devices.AddRange(dto.Devices.Select(d => new DeviceInfo
+                response.Devices.AddRange(dto.Devices.Select(d =>
                 {
-                    DeviceId = d.Id,
-                    Name = d.Name,
-                    Type = MapDeviceType(d.Type),
-                    Status = MapDeviceStatus(d.Status),
-                    Location = d.Location,
-                    LastHeartbeat = d.LastHeartbeat.HasValue
-                        ? Timestamp.FromDateTime(d.LastHeartbeat.Value.ToUniversalTime())
-                        : null,
-                    IsOnline = d.IsOnline,
-                    FirmwareVersion = d.FirmwareVersion,
-                    IpAddress = d.IpAddress
+                    var deviceInfo = new DeviceInfo
+                    {
+                        DeviceId = d.Id,
+                        DeviceName = d.Name,
+                        DeviceType = MapDeviceType(d.Type),
+                        Status = MapDeviceStatus(d.Status),
+                        Location = d.Location ?? string.Empty,
+                        CreatedAt = Timestamp.FromDateTime(d.CreatedAt.ToUniversalTime()),
+                        LastUpdated = Timestamp.FromDateTime(d.UpdatedAt.ToUniversalTime())
+                    };
+
+                    if (d.LastHeartbeat.HasValue)
+                    {
+                        deviceInfo.LastHeartbeat = Timestamp.FromDateTime(d.LastHeartbeat.Value.ToUniversalTime());
+                    }
+
+                    deviceInfo.Metadata.Add("firmware_version", d.FirmwareVersion ?? string.Empty);
+                    deviceInfo.Metadata.Add("ip_address", d.IpAddress ?? string.Empty);
+                    deviceInfo.Metadata.Add("is_online", d.IsOnline.ToString().ToLower());
+
+                    return deviceInfo;
                 }));
 
-                return Task.FromResult(response);
+                return response;
             },
-            error => throw error.ToRpcException()
+            error => error.ToRpcException()
         );
     }
 
@@ -115,45 +140,56 @@ public class DeviceGrpcService : DeviceService.DeviceServiceBase
     {
         _logger.LogDebug("UpdateDevice called for device: {DeviceId}", request.DeviceId);
 
+        var name = request.Metadata.TryGetValue("name", out var nameValue) ? nameValue : null;
+        var firmwareVersion = request.Metadata.TryGetValue("firmware_version", out var fwValue) ? fwValue : null;
+
         var command = new UpdateDeviceCommand(
             request.DeviceId,
-            request.Status != Workshop.Proto.Device.DeviceStatus.Unspecified
-                ? MapDeviceStatusToDomain(request.Status)
-                : null,
-            !string.IsNullOrWhiteSpace(request.Name) ? request.Name : null,
-            !string.IsNullOrWhiteSpace(request.Location) ? request.Location : null,
-            !string.IsNullOrWhiteSpace(request.FirmwareVersion) ? request.FirmwareVersion : null);
+            request.HasStatus ? MapDeviceStatusToDomain(request.Status) : null,
+            name,
+            request.HasLocation ? request.Location : null,
+            firmwareVersion);
 
-        var result = await _mediator.Send(command, context.CancellationToken);
+        await _mediator.Send(command, context.CancellationToken).ThrowIfFailureAsync();
 
-        return await result.MatchAsync(
-            () => Task.FromResult(new UpdateDeviceResponse { Success = true }),
-            error => throw error.ToRpcException()
-        );
+        return new UpdateDeviceResponse
+        {
+            Success = true,
+            Message = "Device updated successfully"
+        };
     }
 
     public override async Task<RegisterDeviceResponse> RegisterDevice(
         RegisterDeviceRequest request,
         ServerCallContext context)
     {
-        _logger.LogDebug("RegisterDevice called: {DeviceName}", request.Name);
+        _logger.LogDebug("RegisterDevice called: {DeviceName}", request.DeviceName);
+
+        var ipAddress = request.Metadata.TryGetValue("ip_address", out var ipValue) ? ipValue : string.Empty;
+        var firmwareVersion = request.Metadata.TryGetValue("firmware_version", out var fwValue) ? fwValue : string.Empty;
 
         var command = new RegisterDeviceCommand(
-            request.Name,
-            MapDeviceTypeToDomain(request.Type),
+            request.DeviceName,
+            MapDeviceTypeToDomain(request.DeviceType),
             request.Location,
-            request.IpAddress,
-            request.FirmwareVersion);
+            ipAddress,
+            firmwareVersion);
 
-        var result = await _mediator.Send(command, context.CancellationToken);
-
-        return await result.MatchAsync(
-            deviceId => Task.FromResult(new RegisterDeviceResponse
+        return await _mediator.Send(command, context.CancellationToken).MatchAsync(
+            deviceId => new RegisterDeviceResponse
             {
-                DeviceId = deviceId,
-                Success = true
-            }),
-            error => throw error.ToRpcException()
+                Success = true,
+                Message = "Device registered successfully",
+                Device = new DeviceInfo
+                {
+                    DeviceId = deviceId,
+                    DeviceName = request.DeviceName,
+                    DeviceType = request.DeviceType,
+                    Status = Workshop.Contracts.Device.DeviceStatus.Inactive,
+                    Location = request.Location
+                }
+            },
+            error => error.ToRpcException()
         );
     }
 
@@ -164,17 +200,21 @@ public class DeviceGrpcService : DeviceService.DeviceServiceBase
         _logger.LogDebug("SimulateDeviceEvent called for device: {DeviceId}, EventType: {EventType}",
             request.DeviceId, request.EventType);
 
+        var eventData = string.Join(";", request.EventData.Select(kv => $"{kv.Key}={kv.Value}"));
+
         var command = new SimulateDeviceEventCommand(
             request.DeviceId,
             request.EventType.ToString(),
-            request.EventData);
+            eventData);
 
-        var result = await _mediator.Send(command, context.CancellationToken);
+        await _mediator.Send(command, context.CancellationToken).ThrowIfFailureAsync();
 
-        return await result.MatchAsync(
-            () => Task.FromResult(new SimulateDeviceEventResponse { Success = true }),
-            error => throw error.ToRpcException()
-        );
+        return new SimulateDeviceEventResponse
+        {
+            Success = true,
+            Message = "Event simulated successfully",
+            EventId = Guid.NewGuid().ToString()
+        };
     }
 
     public override async Task<GetDeviceHeartbeatsResponse> GetDeviceHeartbeats(
@@ -183,89 +223,84 @@ public class DeviceGrpcService : DeviceService.DeviceServiceBase
     {
         _logger.LogDebug("GetDeviceHeartbeats called for device: {DeviceId}", request.DeviceId);
 
+        var startTime = request.TimeRange?.Start?.ToDateTime();
+        var endTime = request.TimeRange?.End?.ToDateTime();
+
         var query = new GetDeviceHeartbeatsQuery(
             request.DeviceId,
-            request.StartTime?.ToDateTime(),
-            request.EndTime?.ToDateTime());
+            startTime,
+            endTime);
 
-        var result = await _mediator.Send(query, context.CancellationToken);
-
-        return await result.MatchAsync(
+        return await _mediator.Send(query, context.CancellationToken).MatchAsync(
             dto =>
             {
-                var response = new GetDeviceHeartbeatsResponse
+                var response = new GetDeviceHeartbeatsResponse();
+
+                response.Heartbeats.AddRange(dto.RecentHeartbeats.Select(h => new DeviceHeartbeat
                 {
                     DeviceId = dto.DeviceId,
-                    DeviceName = dto.DeviceName,
-                    LastHeartbeat = dto.LastHeartbeat.HasValue
-                        ? Timestamp.FromDateTime(dto.LastHeartbeat.Value.ToUniversalTime())
-                        : null,
-                    IsOnline = dto.IsOnline,
-                    TimeSinceLastHeartbeatSeconds = dto.TimeSinceLastHeartbeat?.TotalSeconds ?? 0
-                };
-
-                response.RecentHeartbeats.AddRange(dto.RecentHeartbeats.Select(h => new HeartbeatInfo
-                {
                     Timestamp = Timestamp.FromDateTime(h.Timestamp.ToUniversalTime()),
-                    Status = h.Status
+                    Status = MapDeviceStatus(System.Enum.TryParse<Domain.Enums.DeviceStatus>(h.Status, out var status)
+                        ? status
+                        : Domain.Enums.DeviceStatus.Active)
                 }));
 
-                return Task.FromResult(response);
+                return response;
             },
-            error => throw error.ToRpcException()
+            error => error.ToRpcException()
         );
     }
 
-    // Helper methods to map between proto and domain enums
-
-    private static Workshop.Proto.Device.DeviceStatus MapDeviceStatus(Domain.Enums.DeviceStatus status)
+    private static Workshop.Contracts.Device.DeviceStatus MapDeviceStatus(Domain.Enums.DeviceStatus status)
     {
         return status switch
         {
-            Domain.Enums.DeviceStatus.Active => Workshop.Proto.Device.DeviceStatus.Active,
-            Domain.Enums.DeviceStatus.Inactive => Workshop.Proto.Device.DeviceStatus.Inactive,
-            Domain.Enums.DeviceStatus.Maintenance => Workshop.Proto.Device.DeviceStatus.Maintenance,
-            Domain.Enums.DeviceStatus.Blocked => Workshop.Proto.Device.DeviceStatus.Blocked,
-            Domain.Enums.DeviceStatus.Offline => Workshop.Proto.Device.DeviceStatus.Offline,
-            Domain.Enums.DeviceStatus.Error => Workshop.Proto.Device.DeviceStatus.Error,
-            _ => Workshop.Proto.Device.DeviceStatus.Unspecified
+            Domain.Enums.DeviceStatus.Active => Workshop.Contracts.Device.DeviceStatus.Active,
+            Domain.Enums.DeviceStatus.Inactive => Workshop.Contracts.Device.DeviceStatus.Inactive,
+            Domain.Enums.DeviceStatus.Maintenance => Workshop.Contracts.Device.DeviceStatus.Maintenance,
+            Domain.Enums.DeviceStatus.Blocked => Workshop.Contracts.Device.DeviceStatus.Blocked,
+            Domain.Enums.DeviceStatus.Offline => Workshop.Contracts.Device.DeviceStatus.Offline,
+            Domain.Enums.DeviceStatus.Error => Workshop.Contracts.Device.DeviceStatus.Error,
+            _ => Workshop.Contracts.Device.DeviceStatus.Unspecified
         };
     }
 
-    private static Domain.Enums.DeviceStatus MapDeviceStatusToDomain(Workshop.Proto.Device.DeviceStatus status)
+    private static Domain.Enums.DeviceStatus MapDeviceStatusToDomain(Workshop.Contracts.Device.DeviceStatus status)
     {
         return status switch
         {
-            Workshop.Proto.Device.DeviceStatus.Active => Domain.Enums.DeviceStatus.Active,
-            Workshop.Proto.Device.DeviceStatus.Inactive => Domain.Enums.DeviceStatus.Inactive,
-            Workshop.Proto.Device.DeviceStatus.Maintenance => Domain.Enums.DeviceStatus.Maintenance,
-            Workshop.Proto.Device.DeviceStatus.Blocked => Domain.Enums.DeviceStatus.Blocked,
-            Workshop.Proto.Device.DeviceStatus.Offline => Domain.Enums.DeviceStatus.Offline,
-            Workshop.Proto.Device.DeviceStatus.Error => Domain.Enums.DeviceStatus.Error,
+            Workshop.Contracts.Device.DeviceStatus.Active => Domain.Enums.DeviceStatus.Active,
+            Workshop.Contracts.Device.DeviceStatus.Inactive => Domain.Enums.DeviceStatus.Inactive,
+            Workshop.Contracts.Device.DeviceStatus.Maintenance => Domain.Enums.DeviceStatus.Maintenance,
+            Workshop.Contracts.Device.DeviceStatus.Blocked => Domain.Enums.DeviceStatus.Blocked,
+            Workshop.Contracts.Device.DeviceStatus.Offline => Domain.Enums.DeviceStatus.Offline,
+            Workshop.Contracts.Device.DeviceStatus.Error => Domain.Enums.DeviceStatus.Error,
             _ => Domain.Enums.DeviceStatus.Inactive
         };
     }
 
-    private static Workshop.Proto.Device.DeviceType MapDeviceType(Domain.Enums.DeviceType type)
+    private static Workshop.Contracts.Device.DeviceType MapDeviceType(Domain.Enums.DeviceType type)
     {
         return type switch
         {
-            Domain.Enums.DeviceType.Gate => Workshop.Proto.Device.DeviceType.Gate,
-            Domain.Enums.DeviceType.Lift => Workshop.Proto.Device.DeviceType.Lift,
-            Domain.Enums.DeviceType.Counter => Workshop.Proto.Device.DeviceType.Counter,
-            Domain.Enums.DeviceType.Control => Workshop.Proto.Device.DeviceType.Control,
-            _ => Workshop.Proto.Device.DeviceType.Unspecified
+            Domain.Enums.DeviceType.Gate => Workshop.Contracts.Device.DeviceType.Gate,
+            Domain.Enums.DeviceType.Lift => Workshop.Contracts.Device.DeviceType.Lift,
+            Domain.Enums.DeviceType.Counter => Workshop.Contracts.Device.DeviceType.Counter,
+            Domain.Enums.DeviceType.Control => Workshop.Contracts.Device.DeviceType.Turnstile,
+            _ => Workshop.Contracts.Device.DeviceType.Unspecified
         };
     }
 
-    private static Domain.Enums.DeviceType MapDeviceTypeToDomain(Workshop.Proto.Device.DeviceType type)
+    private static Domain.Enums.DeviceType MapDeviceTypeToDomain(Workshop.Contracts.Device.DeviceType type)
     {
         return type switch
         {
-            Workshop.Proto.Device.DeviceType.Gate => Domain.Enums.DeviceType.Gate,
-            Workshop.Proto.Device.DeviceType.Lift => Domain.Enums.DeviceType.Lift,
-            Workshop.Proto.Device.DeviceType.Counter => Domain.Enums.DeviceType.Counter,
-            Workshop.Proto.Device.DeviceType.Control => Domain.Enums.DeviceType.Control,
+            Workshop.Contracts.Device.DeviceType.Gate => Domain.Enums.DeviceType.Gate,
+            Workshop.Contracts.Device.DeviceType.Lift => Domain.Enums.DeviceType.Lift,
+            Workshop.Contracts.Device.DeviceType.Counter => Domain.Enums.DeviceType.Counter,
+            Workshop.Contracts.Device.DeviceType.Turnstile => Domain.Enums.DeviceType.Control,
+            Workshop.Contracts.Device.DeviceType.Barrier => Domain.Enums.DeviceType.Gate,
+            Workshop.Contracts.Device.DeviceType.Reader => Domain.Enums.DeviceType.Control,
             _ => Domain.Enums.DeviceType.Gate
         };
     }

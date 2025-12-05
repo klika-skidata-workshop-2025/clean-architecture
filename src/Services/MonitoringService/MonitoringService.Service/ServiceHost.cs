@@ -24,7 +24,7 @@ public class ServiceHost : IAsyncDisposable
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         await _app.Services.EnsureDatabaseAsync();
-        await _app.RunAsync(cancellationToken);
+        await _app.RunAsync(url: null);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)

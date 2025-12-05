@@ -19,6 +19,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Entity Framework Core for DbContext interface -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+
     <!-- MediatR for CQRS pattern -->
     <PackageReference Include="MediatR" />
 

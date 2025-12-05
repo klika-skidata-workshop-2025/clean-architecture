@@ -5,11 +5,6 @@
 version: '3.8'
 
 services:
-  # Override RabbitMQ for development
-  rabbitmq:
-    environment:
-      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 512MB
-
   # Override PostgreSQL instances for development
   postgres-device:
     environment:

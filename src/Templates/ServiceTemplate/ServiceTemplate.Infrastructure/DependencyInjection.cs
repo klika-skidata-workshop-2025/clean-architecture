@@ -3,8 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ServiceTemplate.Application.Common.Interfaces;
 using ServiceTemplate.Infrastructure.Persistence;
-using Workshop.Messaging.Abstractions;
-using Workshop.Messaging.Configuration;
+using Workshop.Messaging;
 
 namespace ServiceTemplate.Infrastructure;
 
